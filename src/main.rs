@@ -12,6 +12,8 @@ mod errors;
 mod parser;
 mod expr;
 use scanner::Scanner;
+use parser::Parser;
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     println!("{:?}", args);
@@ -80,7 +82,17 @@ fn run(s: &str) {
     let mut scanner = Scanner::new(s);
     let tokens = scanner.scan_tokens();
 
-    for token in tokens {
-        println!("{:?}", token);
+    let mut parser = Parser::new(&tokens);
+    let ret = parser.parse();
+    match ret {
+        Ok(expr) => {
+            println!("{:?}", expr);
+        }
+        Err(_e) => {
+
+        }
     }
+    // for token in tokens {
+    //     println!("{:?}", token);
+    // }
 }

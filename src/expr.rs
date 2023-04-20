@@ -178,4 +178,5 @@ pub enum Expr {
     ThisExpr(This),
     UnaryExpr(Unary),
     VariableExpr(Variable),
+    NoSense,
 }

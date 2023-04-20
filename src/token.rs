@@ -12,9 +12,9 @@ pub enum Tokenliteral {
 #[derive(Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,
-    lexeme: String,
+    pub lexeme: String,
     pub literal: Tokenliteral,
-    line: i32,
+    pub line: i32,
 }
 
 impl Token {
