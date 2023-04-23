@@ -1,5 +1,22 @@
+use crate::interpreter::Interpreter;
 use crate::token::Token;
 use crate::token::Tokenliteral;
+//use crate::::interpreter::Interpreter;
+
+pub trait Visitor {
+    fn visitAssignExpr(&self, expr: Assign);
+    fn visitBinaryExpr(&self, expr: &Binary) -> Tokenliteral;
+    fn visitCallExpr(&self, expr: Call);
+    fn visitGetExpr(&self, expr: Get);
+    fn visitGroupingExpr(&self, expr: &Grouping) -> Tokenliteral;
+    fn visitLiteralExpr(&self, expr: &Literal) -> Tokenliteral;
+    fn visitLogicalExpr(&self, expr: Logical);
+    fn visitSetExpr(&self, expr: Set);
+    fn visitSuperExpr(&self, expr: Super);
+    fn visitThisExpr(&self, expr: This);
+    fn visitUnaryExpr(&self, expr: &Unary) -> Tokenliteral;
+    fn visitVariableExpr(&self, expr: Variable);
+}
 
 //////////////////////
 #[derive(Debug, Clone)]
@@ -9,25 +26,27 @@ pub struct Assign {
 }
 impl Assign {
     pub fn new(name: &Token, value: &Expr) -> Assign {
-        Assign { 
-            name: name.clone(), 
-            value: Box::new(value.clone()) }
-    } 
+        Assign {
+            name: name.clone(),
+            value: Box::new(value.clone()),
+        }
+    }
 }
 
 ////////////////////////
 #[derive(Debug, Clone)]
 pub struct Binary {
-    left: Box<Expr>,
-    operator: Token,
-    right: Box<Expr>,
+    pub left: Box<Expr>,
+    pub operator: Token,
+    pub right: Box<Expr>,
 }
 impl Binary {
     pub fn new(left: &Expr, op: &Token, right: &Expr) -> Binary {
         Binary {
-            left: Box::new(left.clone()), 
-            operator: op.clone(), 
-            right: Box::new(right.clone())}
+            left: Box::new(left.clone()),
+            operator: op.clone(),
+            right: Box::new(right.clone()),
+        }
     }
 }
 
@@ -36,14 +55,15 @@ impl Binary {
 pub struct Call {
     callee: Box<Expr>,
     paren: Token,
-    arguments: Vec<Expr>,    
+    arguments: Vec<Expr>,
 }
 impl Call {
     pub fn new(callee: &Expr, paren: &Token, args: &Vec<Expr>) -> Call {
         Call {
-            callee: Box::new(callee.clone()), 
-            paren: paren.clone(), 
-            arguments: args.clone()}
+            callee: Box::new(callee.clone()),
+            paren: paren.clone(),
+            arguments: args.clone(),
+        }
     }
 }
 
@@ -56,26 +76,29 @@ pub struct Get {
 impl Get {
     pub fn new(obj: &Expr, name: &Token) -> Get {
         Get {
-            object: Box::new(obj.clone()), 
-            name: name.clone()}
+            object: Box::new(obj.clone()),
+            name: name.clone(),
+        }
     }
 }
 
 /////////////////////////////
 #[derive(Debug, Clone)]
 pub struct Grouping {
-    expression: Box<Expr>,
+    pub expression: Box<Expr>,
 }
 impl Grouping {
     pub fn new(expr: &Expr) -> Grouping {
-        Grouping { expression: Box::new(expr.clone()) }
+        Grouping {
+            expression: Box::new(expr.clone()),
+        }
     }
 }
 
 ////////////////////////////////
 #[derive(Debug, Clone)]
 pub struct Literal {
-    value: Tokenliteral,
+    pub value: Tokenliteral,
 }
 impl Literal {
     pub fn new(s: &Tokenliteral) -> Literal {
@@ -92,10 +115,11 @@ pub struct Logical {
 }
 impl Logical {
     pub fn new(left: &Expr, op: &Token, right: &Expr) -> Logical {
-        Logical { 
-            left: Box::new(left.clone()), 
-            operator: op.clone(), 
-            right: Box::new(right.clone()) }
+        Logical {
+            left: Box::new(left.clone()),
+            operator: op.clone(),
+            right: Box::new(right.clone()),
+        }
     }
 }
 
@@ -108,10 +132,11 @@ pub struct Set {
 }
 impl Set {
     pub fn new(obj: &Expr, name: &Token, value: &Expr) -> Set {
-        Self { 
-            object: Box::new(obj.clone()), 
-            name: name.clone(), 
-            value: Box::new(value.clone()) }
+        Self {
+            object: Box::new(obj.clone()),
+            name: name.clone(),
+            value: Box::new(value.clone()),
+        }
     }
 }
 
@@ -123,7 +148,10 @@ pub struct Super {
 }
 impl Super {
     pub fn new(keywork: &Token, method: &Token) -> Super {
-        Super { keyword: keywork.clone(), method: method.clone() }
+        Super {
+            keyword: keywork.clone(),
+            method: method.clone(),
+        }
     }
 }
 
@@ -134,21 +162,24 @@ pub struct This {
 }
 impl This {
     pub fn new(keyword: &Token) -> This {
-        This { keyword: keyword.clone() }
+        This {
+            keyword: keyword.clone(),
+        }
     }
 }
 
 //////////////////////////////////
 #[derive(Debug, Clone)]
 pub struct Unary {
-    operator: Token,
-    right: Box<Expr>,
+    pub operator: Token,
+    pub right: Box<Expr>,
 }
 impl Unary {
     pub fn new(op: &Token, right: &Expr) -> Unary {
-        Unary { 
-            operator: op.clone(), 
-            right: Box::new(right.clone()) }
+        Unary {
+            operator: op.clone(),
+            right: Box::new(right.clone()),
+        }
     }
 }
 
@@ -162,7 +193,6 @@ impl Variable {
         Variable { name: name.clone() }
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -179,4 +209,26 @@ pub enum Expr {
     UnaryExpr(Unary),
     VariableExpr(Variable),
     NoSense,
+}
+
+impl Expr {
+    pub fn accept(&self, inter: &Interpreter) -> Tokenliteral {
+        match self {
+            Expr::BinaryExpr(binary) => {
+                return inter.visitBinaryExpr(binary);
+            }
+            Expr::GroupingExpr(group) => {
+                return inter.visitGroupingExpr(group);
+            }
+            Expr::LiteralExpr(literal) => {
+                return inter.visitLiteralExpr(literal);
+            }
+            Expr::UnaryExpr(unary) => {
+                return inter.visitUnaryExpr(unary);
+            }
+            _ => {
+                return Tokenliteral::Nil;
+            }
+        }
+    }
 }

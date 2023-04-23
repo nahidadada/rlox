@@ -11,6 +11,7 @@ mod token_type;
 mod errors;
 mod parser;
 mod expr;
+mod interpreter;
 use scanner::Scanner;
 use parser::Parser;
 
@@ -84,14 +85,19 @@ fn run(s: &str) {
 
     let mut parser = Parser::new(&tokens);
     let ret = parser.parse();
-    match ret {
-        Ok(expr) => {
-            println!("{:?}", expr);
-        }
-        Err(_e) => {
+    if let Ok(expr) = ret {
+        let inter = interpreter::Interpreter{};
+        inter.interpret(&expr);
 
-        }
     }
+    // match ret {
+    //     Ok(expr) => {
+    //         println!("{:?}", expr);
+    //     }
+    //     Err(_e) => {
+
+    //     }
+    // }
     // for token in tokens {
     //     println!("{:?}", token);
     // }

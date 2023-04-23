@@ -1,3 +1,5 @@
+use std::fmt;
+
 use crate::token_type::TokenType;
 
 #[derive(Clone, Debug)]
@@ -6,6 +8,16 @@ pub enum Tokenliteral {
     Lnumber(f64),
     Lbool(bool),
     Nil,
+}
+impl fmt::Display for Tokenliteral {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            Tokenliteral::Lstirng(v) => write!(f, "{}", v),
+            Tokenliteral::Lnumber(v) => write!(f, "{}", v),
+            Tokenliteral::Lbool(v) => write!(f, "{}", v),
+            Tokenliteral::Nil => write!(f, "Nil", ),
+        }
+    }
 }
 
 #[allow(dead_code)]
