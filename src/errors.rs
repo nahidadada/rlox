@@ -1,9 +1,15 @@
+use crate::token::Token;
+
+#[derive(Debug)]
 pub enum LoxError {
     ParseError,
+    RuntimeError(Token, String),
 }
 
 pub mod log {
-    use crate::{token::Token, token_type::TokenType};
+    use crate::{token::Token, token_type::{TokenType, self}};
+
+    use super::LoxError;
 
     pub fn error(line: i32, message: &str) {
         report(line, "", message);
@@ -23,5 +29,12 @@ pub mod log {
             place.push_str("'");
             report(token.line, &place, msg);
         }
+    }
+
+    pub fn runtime_error(e: LoxError) {
+        if let LoxError::RuntimeError(token, msg) = e {
+            println!("{:?} : {}", token.token_type, msg);
+        }
+        // had_runtime_error = true;
     }
 }

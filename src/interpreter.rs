@@ -1,6 +1,7 @@
+use crate::errors::{LoxError, log};
 use crate::token_type::TokenType::*;
 use crate::{
-    expr::{Expr, Grouping, Visitor},
+    expr::{Expr, Visitor},
     token::Tokenliteral,
 };
 
@@ -9,10 +10,17 @@ pub struct Interpreter {}
 impl Interpreter {
     pub fn interpret(&self, expr: &Expr) {
         let ret = self.evalute(expr);
-        println!("{}", ret);
+        match ret {
+            Ok(v) => {
+                println!("{}", v);
+            }
+            Err(e) => {
+                log::runtime_error(e);
+            }
+        }
     }
 
-    fn evalute(&self, expr: &Expr) -> Tokenliteral {
+    fn evalute(&self, expr: &Expr) -> Result<Tokenliteral, LoxError> {
         return expr.accept(self);
     }
     fn is_truthy(&self, literal: &Tokenliteral) -> bool {
@@ -53,112 +61,114 @@ impl Interpreter {
 }
 
 impl Visitor for Interpreter {
-    fn visitAssignExpr(&self, expr: crate::expr::Assign) {
+    fn visit_assign_expr(&self, _expr: crate::expr::Assign) {
         todo!()
     }
 
-    fn visitBinaryExpr(&self, expr: &crate::expr::Binary) -> Tokenliteral {
-        let left = self.evalute(&*expr.left);
-        let right = self.evalute(&*expr.right);
+    fn visit_binary_expr(&self, expr: &crate::expr::Binary) -> Result<Tokenliteral, LoxError> {
+        let left = self.evalute(&*expr.left)?;
+        let right = self.evalute(&*expr.right)?;
 
         let ret = match (&left, &right) {
             (Tokenliteral::Lnumber(vleft), Tokenliteral::Lnumber(vright)) => {
                 match expr.operator.token_type {
                     Minus => {
-                        Tokenliteral::Lnumber(vleft - vright)
+                        Ok(Tokenliteral::Lnumber(vleft - vright))
                     }
                     Slash => {
-                        Tokenliteral::Lnumber(vleft / vright)
+                        Ok(Tokenliteral::Lnumber(vleft / vright))
                     }
                     Star => {
-                        Tokenliteral::Lnumber(vleft * vright)
+                        Ok(Tokenliteral::Lnumber(vleft * vright))
                     }
                     Plus => {
-                        Tokenliteral::Lnumber(vleft + vright)
+                        Ok(Tokenliteral::Lnumber(vleft + vright))
                     }
                     Greater => {
-                        Tokenliteral::Lbool(vleft > vright)
+                        Ok(Tokenliteral::Lbool(vleft > vright))
                     }
                     GreaterEqual => {
-                        Tokenliteral::Lbool(vleft >= vright)
+                        Ok(Tokenliteral::Lbool(vleft >= vright))
                     }
                     Less => {
-                        Tokenliteral::Lbool(vleft < vright)
+                        Ok(Tokenliteral::Lbool(vleft < vright))
                     }
                     LessEqual => {
-                        Tokenliteral::Lbool(vleft <= vright)
+                        Ok(Tokenliteral::Lbool(vleft <= vright))
                     }
                     BangEqual => {
-                        Tokenliteral::Lbool(!self.is_equal(&left, &right))
+                        Ok(Tokenliteral::Lbool(!self.is_equal(&left, &right)))
                     }
                     EqualEqual => {
-                        Tokenliteral::Lbool(self.is_equal(&left, &right))
+                        Ok(Tokenliteral::Lbool(self.is_equal(&left, &right)))
                     }
                     _ => {
-                        println!("match token type {:?} error", expr.operator);
-                        Tokenliteral::Nil
+                        Err(LoxError::RuntimeError(expr.operator.clone(), "operator error".to_string()))
                     }        
                 }
             }
             (Tokenliteral::Lstirng(vleft), Tokenliteral::Lstirng(vright)) => {
                 let mut s = vleft.clone();
                 s.push_str(&vright);
-                Tokenliteral::Lstirng(s)
+                Ok(Tokenliteral::Lstirng(s))
             }
             _ => {
-                println!("op + error, left={:?}, right={:?}", left, right);
-                Tokenliteral::Nil
+                Err(LoxError::RuntimeError(expr.operator.clone(), "operator error".to_string()))
             }
         };
         return ret;
     }
 
-    fn visitCallExpr(&self, expr: crate::expr::Call) {
+    fn visit_call_expr(&self, _expr: crate::expr::Call) {
         todo!()
     }
 
-    fn visitGetExpr(&self, expr: crate::expr::Get) {
+    fn visit_get_expr(&self, _expr: crate::expr::Get) {
         todo!()
     }
 
-    fn visitGroupingExpr(&self, expr: &crate::expr::Grouping) -> Tokenliteral {
+    fn visit_grouping_expr(&self, expr: &crate::expr::Grouping) -> Result<Tokenliteral, LoxError> {
         return self.evalute(&expr.expression);
     }
 
-    fn visitLiteralExpr(&self, expr: &crate::expr::Literal) -> Tokenliteral {
-        return expr.value.clone();
+    fn visit_literal_expr(&self, expr: &crate::expr::Literal) -> Result<Tokenliteral, LoxError> {
+        return Ok(expr.value.clone());
     }
 
-    fn visitLogicalExpr(&self, expr: crate::expr::Logical) {
+    fn visit_logical_expr(&self, _expr: crate::expr::Logical) {
         todo!()
     }
 
-    fn visitSetExpr(&self, expr: crate::expr::Set) {
+    fn visit_set_expr(&self, _expr: crate::expr::Set) {
         todo!()
     }
 
-    fn visitSuperExpr(&self, expr: crate::expr::Super) {
+    fn visit_super_expr(&self, _expr: crate::expr::Super) {
         todo!()
     }
 
-    fn visitThisExpr(&self, expr: crate::expr::This) {
+    fn visit_this_expr(&self, _expr: crate::expr::This) {
         todo!()
     }
 
-    fn visitUnaryExpr(&self, expr: &crate::expr::Unary) -> Tokenliteral {
-        let right = self.evalute(&expr.right);
+    fn visit_unary_expr(&self, expr: &crate::expr::Unary) -> Result<Tokenliteral, LoxError> {
+        let right = self.evalute(&expr.right)?;
         let ret = match expr.operator.token_type {
             Minus => match right {
-                Tokenliteral::Lnumber(v) => Tokenliteral::Lnumber(-v),
-                _ => Tokenliteral::Nil,
+                Tokenliteral::Lnumber(v) => Ok(Tokenliteral::Lnumber(-v)),
+                _ => {
+                    Err(LoxError::RuntimeError(expr.operator.clone(), "Operand must be a number".to_string()))
+                }
             },
-            Bang => Tokenliteral::Lbool(!self.is_truthy(&right)),
-            _ => Tokenliteral::Nil,
+            Bang => Ok(Tokenliteral::Lbool(!self.is_truthy(&right))),
+            _ => {
+                Err(LoxError::RuntimeError(expr.operator.clone(), "wrong operator".to_string()))
+            }
         };
         return ret;
     }
 
-    fn visitVariableExpr(&self, expr: crate::expr::Variable) {
+    fn visit_variable_expr(&self, _expr: crate::expr::Variable) {
         todo!()
     }
 }
