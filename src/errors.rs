@@ -52,7 +52,7 @@ impl Log {
         }
     }
 
-    pub fn runtime_error(&mut self, e: LoxError) {
+    pub fn runtime_error(&mut self, e: &LoxError) {
         if let LoxError::RuntimeError(token, msg) = e {
             println!("line {}, {} : {}", token.line, token.lexeme, msg);
         }

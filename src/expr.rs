@@ -2,9 +2,8 @@ use crate::errors::LoxError;
 use crate::interpreter::Interpreter;
 use crate::token::Token;
 use crate::token::Tokenliteral;
-//use crate::::interpreter::Interpreter;
 
-pub trait Visitor {
+pub trait ExprVisitor {
     fn visit_assign_expr(&self, expr: Assign);
     fn visit_binary_expr(&self, expr: &Binary) -> Result<Tokenliteral, LoxError>;
     fn visit_call_expr(&self, expr: Call);

@@ -5,17 +5,18 @@ use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
 
-mod scanner;
-mod token;
-mod token_type;
 mod errors;
-mod parser;
 mod expr;
 mod interpreter;
-use interpreter::Interpreter;
-use scanner::Scanner;
-use parser::Parser;
+mod parser;
+mod scanner;
+mod stmt;
+mod token;
+mod token_type;
 use errors::Log;
+use interpreter::Interpreter;
+use parser::Parser;
+use scanner::Scanner;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -92,10 +93,11 @@ fn run(s: &str, log: &mut Log) {
     let tokens = scanner.scan_tokens();
 
     let mut parser = Parser::new(&tokens, log);
-    let ret = parser.parse();
-    if let Ok(expr) = ret {
-        let mut inter = Interpreter::new(log);
-        inter.interpret(&expr);
-
+    let stmts = parser.parse();
+    if log.had_parse_error() {
+        return;
     }
+
+    let mut inter = Interpreter::new(log);
+    inter.interpret(&stmts);
 }

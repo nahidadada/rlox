@@ -2,6 +2,7 @@ use crate::{token::Token, token_type::TokenType};
 use crate::token_type::TokenType::*;
 use crate::token::Tokenliteral;
 use crate::expr::*;
+use crate::stmt::{self, *};
 use crate::errors::LoxError;
 use crate::errors::Log;
 
@@ -20,8 +21,33 @@ impl Parser<'_> {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Expr, LoxError> {
-        return self.expression();
+    pub fn parse(&mut self) -> Vec<Result<Stmt, LoxError>> {
+        let mut result = Vec::new();
+        while !self.is_at_end() {
+            let ret = self.statement();
+            result.push(ret);
+            
+        }
+        return result;
+    }
+
+    fn statement(&mut self) -> Result<Stmt, LoxError> {
+        if self.is_match(&[Print]) {
+            return self.print_statement();
+        }
+        return self.expression_statement();
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, LoxError> {
+        let value = self.expression()?;
+        self.consume(&Semicolon, "Expect ';' after value")?;
+        Ok(Stmt::PrintStmt(stmt::Print::new(&value)))
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, LoxError> {
+        let expr = self.expression()?;
+        self.consume(&Semicolon, "Expect ';' after expression.")?;
+        Ok(Stmt::ExpressionStmt(Expression::new(&expr)))
     }
 
     fn expression(&mut self) -> Result<Expr, LoxError> {

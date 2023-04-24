@@ -1,7 +1,8 @@
 use crate::errors::{LoxError, Log};
+use crate::stmt::{StmtVisitor, Stmt};
 use crate::token_type::TokenType::*;
 use crate::{
-    expr::{Expr, Visitor},
+    expr::{Expr, ExprVisitor},
     token::Tokenliteral,
 };
 
@@ -14,16 +15,24 @@ impl Interpreter<'_> {
         Interpreter { errors: log }
     }
 
-    pub fn interpret(&mut self, expr: &Expr) {
-        let ret = self.evalute(expr);
-        match ret {
-            Ok(v) => {
-                println!("{}", v);
-            }
-            Err(e) => {
-                self.errors.runtime_error(e);
+    pub fn interpret(&mut self, statements: &Vec<Result<Stmt, LoxError>>) {
+        for stmt in statements.iter() {
+            match stmt {
+                Ok(s) => {
+                    self.execute(s);
+                    if self.errors.had_runtime_error() {
+                        break;
+                    }
+                }
+                Err(e) => {
+                    break;
+                }
             }
         }
+    }
+
+    fn execute(&mut self, stmt: &Stmt) {
+        stmt.accept(self);
     }
 
     fn evalute(&self, expr: &Expr) -> Result<Tokenliteral, LoxError> {
@@ -66,7 +75,7 @@ impl Interpreter<'_> {
     }
 }
 
-impl Visitor for Interpreter<'_> {
+impl ExprVisitor for Interpreter<'_> {
     fn visit_assign_expr(&self, _expr: crate::expr::Assign) {
         todo!()
     }
@@ -119,7 +128,7 @@ impl Visitor for Interpreter<'_> {
                 Ok(Tokenliteral::Lstirng(s))
             }
             _ => {
-                Err(LoxError::RuntimeError(expr.operator.clone(), "operator error".to_string()))
+                Err(LoxError::RuntimeError(expr.operator.clone(), "operands must be two numbers or two strings".to_string()))
             }
         };
         return ret;
@@ -175,6 +184,52 @@ impl Visitor for Interpreter<'_> {
     }
 
     fn visit_variable_expr(&self, _expr: crate::expr::Variable) {
+        todo!()
+    }
+}
+
+impl StmtVisitor for Interpreter<'_> {
+    fn visit_block_stmt(&self, stmt: &crate::stmt::Block) {
+        todo!()
+    }
+
+    fn visit_class_stmt(&self, stmt: &crate::stmt::Class) {
+        todo!()
+    }
+
+    fn visit_expression_stmt(&self, stmt: &crate::stmt::Expression) {
+        let _ret = self.evalute(&stmt.expression);
+    }
+
+    fn visit_function_stmt(&self, stmt: &crate::stmt::Function) {
+        todo!()
+    }
+
+    fn visit_if_stmt(&self, stmt: &crate::stmt::If) {
+        todo!()
+    }
+
+    fn visit_print_stmt(&mut self, stmt: &crate::stmt::Print) {
+        let value = self.evalute(&stmt.expression);
+        match value {
+            Ok(token) => {
+                println!("{}", token);
+            }
+            Err(e) => {
+                self.errors.runtime_error(&e);
+            }
+        }
+    }
+
+    fn visit_return_stmt(&self, stmt: &crate::stmt::Return) {
+        todo!()
+    }
+
+    fn visit_var_stmt(&self, stmt: &crate::stmt::Var) {
+        todo!()
+    }
+
+    fn visit_while_stmt(&self, stmt: &crate::stmt::While) {
         todo!()
     }
 }
