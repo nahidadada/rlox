@@ -3,18 +3,20 @@ use crate::token_type::TokenType::*;
 use crate::token::Tokenliteral;
 use crate::expr::*;
 use crate::errors::LoxError;
-use crate::errors::log;
+use crate::errors::Log;
 
-pub struct Parser {
+pub struct Parser<'a> {
     tokens: Vec<Token>,
     current: usize,
+    errors: &'a mut Log,
 }
 
-impl Parser {
-    pub fn new(tokens: &Vec<Token>) -> Parser {
+impl Parser<'_> {
+    pub fn new<'a>(tokens: &'a Vec<Token>, log: &'a mut Log) -> Parser<'a> {
         Parser {
             tokens: tokens.clone(),
             current: 0,
+            errors: log,
         }
     }
 
@@ -152,8 +154,8 @@ impl Parser {
         return self.error(&self.peek(), msg);
     }
 
-    fn error(&self, token: &Token, msg: &str) -> Result<Token, LoxError> {
-        log::token_error(&token, msg);
+    fn error(&mut self, token: &Token, msg: &str) -> Result<Token, LoxError> {
+        self.errors.token_error(&token, msg);
         return Err(LoxError::ParseError);
     }
 

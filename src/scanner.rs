@@ -2,19 +2,21 @@ use std::collections::HashMap;
 
 use crate::token::Token;
 use crate::token_type::TokenType::{*, self};
-use crate::errors::log;
 use crate::token::Tokenliteral;
-pub struct Scanner {
+use crate::errors::Log;
+
+pub struct Scanner<'a> {
     source: Vec<char>,
     start: usize,
     current: usize,
     line: i32,
     tokens: Vec<Token>,
     keywords: HashMap<String, TokenType>,
+    errors: &'a mut Log,
 }
 
-impl Scanner {
-    pub fn new(s: &str) -> Scanner {
+impl Scanner<'_> {
+    pub fn new<'a>(s: &'a str, log: &'a mut Log) -> Scanner<'a> {
         let mut ks = HashMap::new();
         ks.insert("and".to_string(), And);
         ks.insert("class".to_string(), Class);
@@ -40,6 +42,7 @@ impl Scanner {
             line: 1,
             tokens: Vec::new(),
             keywords: ks,
+            errors: log,
         }
     }
 
@@ -122,7 +125,7 @@ impl Scanner {
                 self.handle_identifier();
             }
             _ => {
-                log::error(self.line, "unexpeded char");
+                self.errors.error(self.line, "unexpeded char");
             }
         }
     }
@@ -170,7 +173,7 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            log::error(self.line, "unterminated string");
+            self.errors.error(self.line, "unterminated string");
             return;
         }
 

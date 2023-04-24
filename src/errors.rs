@@ -1,4 +1,4 @@
-use crate::token::Token;
+use crate::{token::Token, token_type::{TokenType}};
 
 #[derive(Debug)]
 pub enum LoxError {
@@ -6,35 +6,56 @@ pub enum LoxError {
     RuntimeError(Token, String),
 }
 
-pub mod log {
-    use crate::{token::Token, token_type::{TokenType, self}};
+pub struct Log {
+    had_parse_error: bool,
+    had_runtime_error: bool,
+}
 
-    use super::LoxError;
-
-    pub fn error(line: i32, message: &str) {
-        report(line, "", message);
+impl Log {
+    pub fn new() -> Log {
+        Log { had_parse_error: false, had_runtime_error: false }
     }
     
-    pub fn report(line: i32, place: &str, message: &str) {
-        println!("[line {}] Error {}: {}", line, place, message);
-        //had_error = true;
+    pub fn had_parse_error(&self) -> bool {
+        self.had_parse_error
     }
 
-    pub fn token_error(token: &Token, msg: &str) {
+    pub fn had_runtime_error(&self) -> bool {
+        self.had_runtime_error
+    }
+
+    pub fn reset_parse_error(&mut self) {
+        self.had_parse_error = false;
+    }
+
+    pub fn reset_runtime_error(&mut self) {
+        self.had_runtime_error = false;
+    }
+
+    pub fn error(&mut self, line: i32, message: &str) {
+        self.report(line, "", message);
+    }
+    
+    pub fn report(&mut self, line: i32, place: &str, message: &str) {
+        println!("[line {}] Error {}: {}", line, place, message);
+        self.had_parse_error = true;
+    }
+
+    pub fn token_error(&mut self, token: &Token, msg: &str) {
         if token.token_type == TokenType::Eofs {
-            report(token.line, " at end", msg);
+            self.report(token.line, " at end", msg);
         } else {
             let mut place = " at '".to_string();
             place.push_str(&token.lexeme);
             place.push_str("'");
-            report(token.line, &place, msg);
+            self.report(token.line, &place, msg);
         }
     }
 
-    pub fn runtime_error(e: LoxError) {
+    pub fn runtime_error(&mut self, e: LoxError) {
         if let LoxError::RuntimeError(token, msg) = e {
-            println!("{:?} : {}", token.token_type, msg);
+            println!("line {}, {} : {}", token.line, token.lexeme, msg);
         }
-        // had_runtime_error = true;
+        self.had_runtime_error = true;
     }
 }

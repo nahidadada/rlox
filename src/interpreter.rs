@@ -1,21 +1,27 @@
-use crate::errors::{LoxError, log};
+use crate::errors::{LoxError, Log};
 use crate::token_type::TokenType::*;
 use crate::{
     expr::{Expr, Visitor},
     token::Tokenliteral,
 };
 
-pub struct Interpreter {}
+pub struct Interpreter<'a> {
+    errors: &'a mut Log,
+}
 
-impl Interpreter {
-    pub fn interpret(&self, expr: &Expr) {
+impl Interpreter<'_> {
+    pub fn new(log: &mut Log) -> Interpreter {
+        Interpreter { errors: log }
+    }
+
+    pub fn interpret(&mut self, expr: &Expr) {
         let ret = self.evalute(expr);
         match ret {
             Ok(v) => {
                 println!("{}", v);
             }
             Err(e) => {
-                log::runtime_error(e);
+                self.errors.runtime_error(e);
             }
         }
     }
@@ -60,7 +66,7 @@ impl Interpreter {
     }
 }
 
-impl Visitor for Interpreter {
+impl Visitor for Interpreter<'_> {
     fn visit_assign_expr(&self, _expr: crate::expr::Assign) {
         todo!()
     }

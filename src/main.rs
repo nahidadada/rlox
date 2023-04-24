@@ -12,8 +12,10 @@ mod errors;
 mod parser;
 mod expr;
 mod interpreter;
+use interpreter::Interpreter;
 use scanner::Scanner;
 use parser::Parser;
+use errors::Log;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -48,10 +50,15 @@ fn run_file(path: &str) {
         panic!();
     }
 
-    run(&s.unwrap());
-    // if had_error {
-    //     panic!();
-    // }
+    let mut log = Log::new();
+    run(&s.unwrap(), &mut log);
+
+    if log.had_parse_error() {
+        panic!("parse error, quit");
+    }
+    if log.had_runtime_error() {
+        panic!("runtime error, quit");
+    }
 }
 
 fn run_prompt() {
@@ -74,31 +81,21 @@ fn run_prompt() {
             break;
         }
 
-        run(&line);
+        let mut log = Log::new();
+        run(&line, &mut log);
         // had_error = false;
     }
 }
 
-fn run(s: &str) {
-    let mut scanner = Scanner::new(s);
+fn run(s: &str, log: &mut Log) {
+    let mut scanner = Scanner::new(s, log);
     let tokens = scanner.scan_tokens();
 
-    let mut parser = Parser::new(&tokens);
+    let mut parser = Parser::new(&tokens, log);
     let ret = parser.parse();
     if let Ok(expr) = ret {
-        let inter = interpreter::Interpreter{};
+        let mut inter = Interpreter::new(log);
         inter.interpret(&expr);
 
     }
-    // match ret {
-    //     Ok(expr) => {
-    //         println!("{:?}", expr);
-    //     }
-    //     Err(_e) => {
-
-    //     }
-    // }
-    // for token in tokens {
-    //     println!("{:?}", token);
-    // }
 }
