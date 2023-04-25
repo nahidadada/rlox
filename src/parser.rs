@@ -24,11 +24,41 @@ impl Parser<'_> {
     pub fn parse(&mut self) -> Vec<Result<Stmt, LoxError>> {
         let mut result = Vec::new();
         while !self.is_at_end() {
-            let ret = self.statement();
+            let ret = self.declaration();
             result.push(ret);
             
         }
         return result;
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, LoxError> {
+        if self.is_match(&[Var]) {
+            let ret = self.var_declaration();
+            if ret.is_err() {
+                self.synchronize();
+            } 
+            return ret;
+        }
+
+        let ret = self.statement();
+        if ret.is_err() {
+            self.synchronize();
+        }
+        return ret;
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, LoxError> {
+        let name = self.consume(&Identifier, "Expect variable name")?;
+        
+        let mut ret = Ok(Expr::Nil);
+        if self.is_match(&[Equal]) {
+            ret = self.expression();
+        }
+
+        let initializer = ret?;
+
+        self.consume(&Semicolon, "Expect ';' after variable declaration.")?;
+        return Ok(Stmt::VarStmt(stmt::Var::new(&name, &initializer)));
     }
 
     fn statement(&mut self) -> Result<Stmt, LoxError> {
@@ -125,6 +155,10 @@ impl Parser<'_> {
             return Ok(Expr::LiteralExpr(Literal::new(&self.previous().literal)));
         }
 
+        if self.is_match(&[Identifier]) {
+            return Ok(Expr::VariableExpr(Variable::new(&self.previous())));
+        }
+
         if self.is_match(&[LeftParen]) {
             let expr = self.expression()?;
             self.consume(&RightParen, "Expect ')' after expression.")?;
@@ -132,7 +166,7 @@ impl Parser<'_> {
         }
 
         return self.error(&self.peek(), "Expect expression.")
-            .map(|_| { Expr::NoSense });
+            .map(|_| { Expr::Nil });
     }
 
     fn is_match(&mut self, types: &[TokenType]) -> bool {
@@ -185,7 +219,6 @@ impl Parser<'_> {
         return Err(LoxError::ParseError);
     }
 
-    #[allow(unreachable_code)]
     fn synchronize(&mut self) {
         self.advance();
 
@@ -196,14 +229,12 @@ impl Parser<'_> {
 
             match self.peek().token_type {
                 Class | Fun | Var | For | If | While | Print | Return => {
-                    return;
+                    break;
                 }
                 _ => {
-                    println!("!!! NO IMPL HERE !!!");
-                    unimplemented!();
+                    self.advance();
                 }
             }
-            self.advance();
         }
     }
 }

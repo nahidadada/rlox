@@ -15,7 +15,7 @@ pub trait ExprVisitor {
     fn visit_super_expr(&self, expr: Super);
     fn visit_this_expr(&self, expr: This);
     fn visit_unary_expr(&self, expr: &Unary) -> Result<Tokenliteral, LoxError>;
-    fn visit_variable_expr(&self, expr: Variable);
+    fn visit_variable_expr(&self, expr: &Variable) -> Result<Tokenliteral, LoxError>;
 }
 
 //////////////////////
@@ -186,7 +186,7 @@ impl Unary {
 ///////////////////////////////////
 #[derive(Debug, Clone)]
 pub struct Variable {
-    name: Token,
+    pub name: Token,
 }
 impl Variable {
     pub fn new(name: &Token) -> Variable {
@@ -208,7 +208,7 @@ pub enum Expr {
     ThisExpr(This),
     UnaryExpr(Unary),
     VariableExpr(Variable),
-    NoSense,
+    Nil,
 }
 
 impl Expr {
@@ -226,9 +226,33 @@ impl Expr {
             Expr::UnaryExpr(unary) => {
                 return inter.visit_unary_expr(unary);
             }
-            _ => {
-                return Ok(Tokenliteral::Nil);
+            Expr::AssignExpr(assign) => {
+                !todo!();
             }
+            Expr::CallExpr(call) => {
+                !todo!();
+            }
+            Expr::GetExpr(_) => {
+                todo!();
+            },
+            Expr::LogicalExpr(_) => {
+                todo!();
+            },
+            Expr::SetExpr(_) => {
+                todo!();
+            },
+            Expr::SuperExpr(_) => {
+                todo!();
+            },
+            Expr::ThisExpr(_) => {
+                todo!();
+            },
+            Expr::VariableExpr(expr) => {
+                return inter.visit_variable_expr(expr);
+            },
+            Expr::Nil => {
+                return Ok(Tokenliteral::Nil);
+            },
         }
     }
 }

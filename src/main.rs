@@ -13,6 +13,7 @@ mod scanner;
 mod stmt;
 mod token;
 mod token_type;
+mod environment;
 use errors::Log;
 use interpreter::Interpreter;
 use parser::Parser;

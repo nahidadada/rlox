@@ -4,6 +4,7 @@ use crate::{token::Token, token_type::{TokenType}};
 pub enum LoxError {
     ParseError,
     RuntimeError(Token, String),
+    ValueError(String),
 }
 
 pub struct Log {

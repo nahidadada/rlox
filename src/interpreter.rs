@@ -1,5 +1,6 @@
-use crate::errors::{LoxError, Log};
-use crate::stmt::{StmtVisitor, Stmt};
+use crate::environment::Environment;
+use crate::errors::{Log, LoxError};
+use crate::stmt::{Stmt, StmtVisitor};
 use crate::token_type::TokenType::*;
 use crate::{
     expr::{Expr, ExprVisitor},
@@ -8,11 +9,15 @@ use crate::{
 
 pub struct Interpreter<'a> {
     errors: &'a mut Log,
+    environment: Environment,
 }
 
 impl Interpreter<'_> {
     pub fn new(log: &mut Log) -> Interpreter {
-        Interpreter { errors: log }
+        Interpreter {
+            errors: log,
+            environment: Environment::new(),
+        }
     }
 
     pub fn interpret(&mut self, statements: &Vec<Result<Stmt, LoxError>>) {
@@ -87,39 +92,20 @@ impl ExprVisitor for Interpreter<'_> {
         let ret = match (&left, &right) {
             (Tokenliteral::Lnumber(vleft), Tokenliteral::Lnumber(vright)) => {
                 match expr.operator.token_type {
-                    Minus => {
-                        Ok(Tokenliteral::Lnumber(vleft - vright))
-                    }
-                    Slash => {
-                        Ok(Tokenliteral::Lnumber(vleft / vright))
-                    }
-                    Star => {
-                        Ok(Tokenliteral::Lnumber(vleft * vright))
-                    }
-                    Plus => {
-                        Ok(Tokenliteral::Lnumber(vleft + vright))
-                    }
-                    Greater => {
-                        Ok(Tokenliteral::Lbool(vleft > vright))
-                    }
-                    GreaterEqual => {
-                        Ok(Tokenliteral::Lbool(vleft >= vright))
-                    }
-                    Less => {
-                        Ok(Tokenliteral::Lbool(vleft < vright))
-                    }
-                    LessEqual => {
-                        Ok(Tokenliteral::Lbool(vleft <= vright))
-                    }
-                    BangEqual => {
-                        Ok(Tokenliteral::Lbool(!self.is_equal(&left, &right)))
-                    }
-                    EqualEqual => {
-                        Ok(Tokenliteral::Lbool(self.is_equal(&left, &right)))
-                    }
-                    _ => {
-                        Err(LoxError::RuntimeError(expr.operator.clone(), "operator error".to_string()))
-                    }        
+                    Minus => Ok(Tokenliteral::Lnumber(vleft - vright)),
+                    Slash => Ok(Tokenliteral::Lnumber(vleft / vright)),
+                    Star => Ok(Tokenliteral::Lnumber(vleft * vright)),
+                    Plus => Ok(Tokenliteral::Lnumber(vleft + vright)),
+                    Greater => Ok(Tokenliteral::Lbool(vleft > vright)),
+                    GreaterEqual => Ok(Tokenliteral::Lbool(vleft >= vright)),
+                    Less => Ok(Tokenliteral::Lbool(vleft < vright)),
+                    LessEqual => Ok(Tokenliteral::Lbool(vleft <= vright)),
+                    BangEqual => Ok(Tokenliteral::Lbool(!self.is_equal(&left, &right))),
+                    EqualEqual => Ok(Tokenliteral::Lbool(self.is_equal(&left, &right))),
+                    _ => Err(LoxError::RuntimeError(
+                        expr.operator.clone(),
+                        "operator error".to_string(),
+                    )),
                 }
             }
             (Tokenliteral::Lstirng(vleft), Tokenliteral::Lstirng(vright)) => {
@@ -127,9 +113,10 @@ impl ExprVisitor for Interpreter<'_> {
                 s.push_str(&vright);
                 Ok(Tokenliteral::Lstirng(s))
             }
-            _ => {
-                Err(LoxError::RuntimeError(expr.operator.clone(), "operands must be two numbers or two strings".to_string()))
-            }
+            _ => Err(LoxError::RuntimeError(
+                expr.operator.clone(),
+                "operands must be two numbers or two strings".to_string(),
+            )),
         };
         return ret;
     }
@@ -171,20 +158,22 @@ impl ExprVisitor for Interpreter<'_> {
         let ret = match expr.operator.token_type {
             Minus => match right {
                 Tokenliteral::Lnumber(v) => Ok(Tokenliteral::Lnumber(-v)),
-                _ => {
-                    Err(LoxError::RuntimeError(expr.operator.clone(), "Operand must be a number".to_string()))
-                }
+                _ => Err(LoxError::RuntimeError(
+                    expr.operator.clone(),
+                    "Operand must be a number".to_string(),
+                )),
             },
             Bang => Ok(Tokenliteral::Lbool(!self.is_truthy(&right))),
-            _ => {
-                Err(LoxError::RuntimeError(expr.operator.clone(), "wrong operator".to_string()))
-            }
+            _ => Err(LoxError::RuntimeError(
+                expr.operator.clone(),
+                "wrong operator".to_string(),
+            )),
         };
         return ret;
     }
 
-    fn visit_variable_expr(&self, _expr: crate::expr::Variable) {
-        todo!()
+    fn visit_variable_expr(&self, expr: &crate::expr::Variable) -> Result<Tokenliteral, LoxError> {
+        return self.environment.get(&expr.name.lexeme);
     }
 }
 
@@ -225,8 +214,20 @@ impl StmtVisitor for Interpreter<'_> {
         todo!()
     }
 
-    fn visit_var_stmt(&self, stmt: &crate::stmt::Var) {
-        todo!()
+    fn visit_var_stmt(&mut self, stmt: &crate::stmt::Var) {
+        let mut value = Ok(Tokenliteral::Nil);
+        match *stmt.initializer {
+            Expr::Nil => {},
+            _ => {
+                value = self.evalute(&stmt.initializer);
+            }
+        }
+
+        if let Ok(v) = value {
+            self.environment.define(&stmt.name.lexeme, &v);
+        } else {
+            println!("visit var stmt error");
+        }
     }
 
     fn visit_while_stmt(&self, stmt: &crate::stmt::While) {

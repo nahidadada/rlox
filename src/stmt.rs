@@ -8,7 +8,7 @@ pub trait StmtVisitor {
     fn visit_if_stmt(&self, stmt: &If);
     fn visit_print_stmt(&mut self, stmt: &Print);
     fn visit_return_stmt(&self, stmt: &Return);
-    fn visit_var_stmt(&self, stmt: &Var);
+    fn visit_var_stmt(&mut self, stmt: &Var);
     fn visit_while_stmt(&self, stmt: &While);
 
 }
@@ -96,7 +96,12 @@ pub struct Var {
     pub initializer: Box<Expr>,
 }
 impl Var {
-
+    pub fn new(name: &Token, initializer: &Expr) -> Var {
+        Var {
+            name: name.clone(),
+            initializer: Box::new(initializer.clone()),
+        }
+    }
 }
 
 ///////////////////////////////////
@@ -136,7 +141,9 @@ impl Stmt {
                 intr.visit_print_stmt(stmt);
             },
             Stmt::ReturnStmt(_) => todo!(),
-            Stmt::VarStmt(_) => todo!(),
+            Stmt::VarStmt(stmt) => {
+                intr.visit_var_stmt(stmt);
+            },
             Stmt::WhileStmt(_) => todo!(),
         }
     }
