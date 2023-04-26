@@ -1,4 +1,4 @@
-use crate::environment::Environment;
+use crate::environment::{Environment};
 use crate::errors::{Log, LoxError};
 use crate::stmt::{Stmt, StmtVisitor};
 use crate::token_type::TokenType::*;
@@ -38,6 +38,17 @@ impl Interpreter<'_> {
 
     fn execute(&mut self, stmt: &Stmt) {
         stmt.accept(self);
+    }
+
+    fn execute_block(&mut self, stmt: &Vec<Box<Stmt>>, env: &Environment) {
+        let outer_env = self.environment.clone();
+
+        self.environment = env.clone();
+        for elem in stmt.iter() {
+            self.execute(elem);
+        }
+
+        self.environment = outer_env;
     }
 
     fn evalute(&mut self, expr: &Expr) -> Result<Tokenliteral, LoxError> {
@@ -181,7 +192,8 @@ impl ExprVisitor for Interpreter<'_> {
 
 impl StmtVisitor for Interpreter<'_> {
     fn visit_block_stmt(&mut self, stmt: &crate::stmt::Block) {
-        todo!()
+        let env = Environment::new_with_visitor(&self.environment);
+        self.execute_block(&stmt.statements, &env);
     }
 
     fn visit_class_stmt(&mut self, stmt: &crate::stmt::Class) {

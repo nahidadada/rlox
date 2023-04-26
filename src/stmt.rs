@@ -18,6 +18,11 @@ pub struct Block {
     pub statements: Vec<Box<Stmt>>,
 }
 impl Block {
+    pub fn new(statements: &Vec<Box<Stmt>>) -> Block {
+        Block {
+            statements: statements.clone(),
+        }
+    }
 }
 
 ///////////////////////
@@ -130,7 +135,9 @@ pub enum Stmt {
 impl Stmt {
     pub fn accept(&self, intr: &mut Interpreter) {
         match self {
-            Stmt::BlockStmt(_) => todo!(),
+            Stmt::BlockStmt(stmt) => {
+                intr.visit_block_stmt(stmt);
+            },
             Stmt::ClassStmt(_) => todo!(),
             Stmt::ExpressionStmt(stmt) => {
                 intr.visit_expression_stmt(stmt);

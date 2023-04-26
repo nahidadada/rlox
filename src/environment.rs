@@ -1,14 +1,24 @@
-use std::collections::HashMap;
+use std::{collections::HashMap};
 
-use crate::{errors::LoxError, token::{Token, Tokenliteral, self}};
+use crate::{errors::LoxError, token::{Token, Tokenliteral}};
 
+
+#[derive(Clone)]
 pub struct Environment {
     values: HashMap<String, Tokenliteral>,
+    env_visitor: Option<Box<Environment>>,//TODO use reference
 }
 impl Environment {
     pub fn new() -> Environment {
+        Environment { 
+            values: HashMap::new(), 
+            env_visitor: None,
+        }
+    }
+    pub fn new_with_visitor(visitor: &Environment) -> Environment {
         Environment {
             values: HashMap::new(),
+            env_visitor: Some(Box::new(visitor.clone())),
         }
     }
 
@@ -22,6 +32,10 @@ impl Environment {
             return Ok(v.clone());
         }
 
+        if let Some(enclosing) = &self.env_visitor {
+            return enclosing.get(name);
+        }
+
         let mut msg = "Undefined variable '".to_string();
         msg.push_str(&name.lexeme);
         msg.push_str("'.'");
@@ -33,6 +47,10 @@ impl Environment {
         if let Some(_v) = ret {
             let _old = self.values.insert(name.lexeme.to_string(), value.clone());
             return Ok(());
+        }
+
+        if let Some(enclosing) = &mut self.env_visitor {
+            return enclosing.assign(name, value);
         }
 
         let mut msg = String::from("Undefined variable '");
