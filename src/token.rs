@@ -38,10 +38,4 @@ impl Token {
             line: line
         }
     }
-
-    #[allow(dead_code)]
-    pub fn to_string(&self) -> String {
-        let s = format!("{:?} {} {:?}", self.token_type, self.lexeme, self.literal);
-        s
-    }
 }

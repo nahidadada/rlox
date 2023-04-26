@@ -40,7 +40,7 @@ impl Interpreter<'_> {
         stmt.accept(self);
     }
 
-    fn evalute(&self, expr: &Expr) -> Result<Tokenliteral, LoxError> {
+    fn evalute(&mut self, expr: &Expr) -> Result<Tokenliteral, LoxError> {
         return expr.accept(self);
     }
     fn is_truthy(&self, literal: &Tokenliteral) -> bool {
@@ -81,11 +81,13 @@ impl Interpreter<'_> {
 }
 
 impl ExprVisitor for Interpreter<'_> {
-    fn visit_assign_expr(&self, _expr: crate::expr::Assign) {
-        todo!()
+    fn visit_assign_expr(&mut self, expr: &crate::expr::Assign) -> Result<Tokenliteral, LoxError> {
+        let value = self.evalute(&expr.value)?;
+        self.environment.assign(&expr.name, &value)?;
+        return Ok(value);
     }
 
-    fn visit_binary_expr(&self, expr: &crate::expr::Binary) -> Result<Tokenliteral, LoxError> {
+    fn visit_binary_expr(&mut self, expr: &crate::expr::Binary) -> Result<Tokenliteral, LoxError> {
         let left = self.evalute(&*expr.left)?;
         let right = self.evalute(&*expr.right)?;
 
@@ -121,39 +123,39 @@ impl ExprVisitor for Interpreter<'_> {
         return ret;
     }
 
-    fn visit_call_expr(&self, _expr: crate::expr::Call) {
+    fn visit_call_expr(&mut self, _expr: crate::expr::Call) {
         todo!()
     }
 
-    fn visit_get_expr(&self, _expr: crate::expr::Get) {
+    fn visit_get_expr(&mut self, _expr: crate::expr::Get) {
         todo!()
     }
 
-    fn visit_grouping_expr(&self, expr: &crate::expr::Grouping) -> Result<Tokenliteral, LoxError> {
+    fn visit_grouping_expr(&mut self, expr: &crate::expr::Grouping) -> Result<Tokenliteral, LoxError> {
         return self.evalute(&expr.expression);
     }
 
-    fn visit_literal_expr(&self, expr: &crate::expr::Literal) -> Result<Tokenliteral, LoxError> {
+    fn visit_literal_expr(&mut self, expr: &crate::expr::Literal) -> Result<Tokenliteral, LoxError> {
         return Ok(expr.value.clone());
     }
 
-    fn visit_logical_expr(&self, _expr: crate::expr::Logical) {
+    fn visit_logical_expr(&mut self, _expr: crate::expr::Logical) {
         todo!()
     }
 
-    fn visit_set_expr(&self, _expr: crate::expr::Set) {
+    fn visit_set_expr(&mut self, _expr: crate::expr::Set) {
         todo!()
     }
 
-    fn visit_super_expr(&self, _expr: crate::expr::Super) {
+    fn visit_super_expr(&mut self, _expr: crate::expr::Super) {
         todo!()
     }
 
-    fn visit_this_expr(&self, _expr: crate::expr::This) {
+    fn visit_this_expr(&mut self, _expr: crate::expr::This) {
         todo!()
     }
 
-    fn visit_unary_expr(&self, expr: &crate::expr::Unary) -> Result<Tokenliteral, LoxError> {
+    fn visit_unary_expr(&mut self, expr: &crate::expr::Unary) -> Result<Tokenliteral, LoxError> {
         let right = self.evalute(&expr.right)?;
         let ret = match expr.operator.token_type {
             Minus => match right {
@@ -172,29 +174,29 @@ impl ExprVisitor for Interpreter<'_> {
         return ret;
     }
 
-    fn visit_variable_expr(&self, expr: &crate::expr::Variable) -> Result<Tokenliteral, LoxError> {
-        return self.environment.get(&expr.name.lexeme);
+    fn visit_variable_expr(&mut self, expr: &crate::expr::Variable) -> Result<Tokenliteral, LoxError> {
+        return self.environment.get(&expr.name);
     }
 }
 
 impl StmtVisitor for Interpreter<'_> {
-    fn visit_block_stmt(&self, stmt: &crate::stmt::Block) {
+    fn visit_block_stmt(&mut self, stmt: &crate::stmt::Block) {
         todo!()
     }
 
-    fn visit_class_stmt(&self, stmt: &crate::stmt::Class) {
+    fn visit_class_stmt(&mut self, stmt: &crate::stmt::Class) {
         todo!()
     }
 
-    fn visit_expression_stmt(&self, stmt: &crate::stmt::Expression) {
+    fn visit_expression_stmt(&mut self, stmt: &crate::stmt::Expression) {
         let _ret = self.evalute(&stmt.expression);
     }
 
-    fn visit_function_stmt(&self, stmt: &crate::stmt::Function) {
+    fn visit_function_stmt(&mut self, stmt: &crate::stmt::Function) {
         todo!()
     }
 
-    fn visit_if_stmt(&self, stmt: &crate::stmt::If) {
+    fn visit_if_stmt(&mut self, stmt: &crate::stmt::If) {
         todo!()
     }
 
@@ -210,7 +212,7 @@ impl StmtVisitor for Interpreter<'_> {
         }
     }
 
-    fn visit_return_stmt(&self, stmt: &crate::stmt::Return) {
+    fn visit_return_stmt(&mut self, stmt: &crate::stmt::Return) {
         todo!()
     }
 
@@ -224,13 +226,13 @@ impl StmtVisitor for Interpreter<'_> {
         }
 
         if let Ok(v) = value {
-            self.environment.define(&stmt.name.lexeme, &v);
+            self.environment.define(&stmt.name, &v);
         } else {
             println!("visit var stmt error");
         }
     }
 
-    fn visit_while_stmt(&self, stmt: &crate::stmt::While) {
+    fn visit_while_stmt(&mut self, stmt: &crate::stmt::While) {
         todo!()
     }
 }

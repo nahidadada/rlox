@@ -81,7 +81,28 @@ impl Parser<'_> {
     }
 
     fn expression(&mut self) -> Result<Expr, LoxError> {
-        return self.equality();
+        return self.assignment();
+    }
+
+    fn assignment(&mut self) -> Result<Expr, LoxError> {
+        let expr = self.equality()?;
+
+        if self.is_match(&[Equal]) {
+            let equals = self.previous();
+            let value = self.assignment()?;
+
+            match &expr {
+                Expr::VariableExpr(vars) => {
+                    let name = &vars.name;
+                    return Ok(Expr::AssignExpr(Assign::new(name, &value)));
+                }
+                _ => {
+                    return self.error(&equals, "Invalid assignment target").map(|_| Expr::Nil);
+                }
+            }
+        }
+
+        return Ok(expr);
     }
 
     fn equality(&mut self) -> Result<Expr, LoxError> {

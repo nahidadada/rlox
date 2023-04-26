@@ -1,15 +1,15 @@
 use crate::{token::Token, expr::Expr, interpreter::Interpreter};
 
 pub trait StmtVisitor {
-    fn visit_block_stmt(&self, stmt: &Block);
-    fn visit_class_stmt(&self, stmt: &Class);
-    fn visit_expression_stmt(&self, stmt: &Expression);
-    fn visit_function_stmt(&self, stmt: &Function);
-    fn visit_if_stmt(&self, stmt: &If);
+    fn visit_block_stmt(&mut self, stmt: &Block);
+    fn visit_class_stmt(&mut self, stmt: &Class);
+    fn visit_expression_stmt(&mut self, stmt: &Expression);
+    fn visit_function_stmt(&mut self, stmt: &Function);
+    fn visit_if_stmt(&mut self, stmt: &If);
     fn visit_print_stmt(&mut self, stmt: &Print);
-    fn visit_return_stmt(&self, stmt: &Return);
+    fn visit_return_stmt(&mut self, stmt: &Return);
     fn visit_var_stmt(&mut self, stmt: &Var);
-    fn visit_while_stmt(&self, stmt: &While);
+    fn visit_while_stmt(&mut self, stmt: &While);
 
 }
 ///////////////////////

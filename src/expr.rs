@@ -4,25 +4,25 @@ use crate::token::Token;
 use crate::token::Tokenliteral;
 
 pub trait ExprVisitor {
-    fn visit_assign_expr(&self, expr: Assign);
-    fn visit_binary_expr(&self, expr: &Binary) -> Result<Tokenliteral, LoxError>;
-    fn visit_call_expr(&self, expr: Call);
-    fn visit_get_expr(&self, expr: Get);
-    fn visit_grouping_expr(&self, expr: &Grouping) -> Result<Tokenliteral, LoxError>;
-    fn visit_literal_expr(&self, expr: &Literal) -> Result<Tokenliteral, LoxError>;
-    fn visit_logical_expr(&self, expr: Logical);
-    fn visit_set_expr(&self, expr: Set);
-    fn visit_super_expr(&self, expr: Super);
-    fn visit_this_expr(&self, expr: This);
-    fn visit_unary_expr(&self, expr: &Unary) -> Result<Tokenliteral, LoxError>;
-    fn visit_variable_expr(&self, expr: &Variable) -> Result<Tokenliteral, LoxError>;
+    fn visit_assign_expr(&mut self, expr: &Assign) -> Result<Tokenliteral, LoxError>;
+    fn visit_binary_expr(&mut self, expr: &Binary) -> Result<Tokenliteral, LoxError>;
+    fn visit_call_expr(&mut self, expr: Call);
+    fn visit_get_expr(&mut self, expr: Get);
+    fn visit_grouping_expr(&mut self, expr: &Grouping) -> Result<Tokenliteral, LoxError>;
+    fn visit_literal_expr(&mut self, expr: &Literal) -> Result<Tokenliteral, LoxError>;
+    fn visit_logical_expr(&mut self, expr: Logical);
+    fn visit_set_expr(&mut self, expr: Set);
+    fn visit_super_expr(&mut self, expr: Super);
+    fn visit_this_expr(&mut self, expr: This);
+    fn visit_unary_expr(&mut self, expr: &Unary) -> Result<Tokenliteral, LoxError>;
+    fn visit_variable_expr(&mut self, expr: &Variable) -> Result<Tokenliteral, LoxError>;
 }
 
 //////////////////////
 #[derive(Debug, Clone)]
 pub struct Assign {
-    name: Token,
-    value: Box<Expr>,
+    pub name: Token,
+    pub value: Box<Expr>,
 }
 impl Assign {
     pub fn new(name: &Token, value: &Expr) -> Assign {
@@ -212,7 +212,7 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn accept(&self, inter: &Interpreter) -> Result<Tokenliteral, LoxError> {
+    pub fn accept(&self, inter: &mut Interpreter) -> Result<Tokenliteral, LoxError> {
         match self {
             Expr::BinaryExpr(binary) => {
                 return inter.visit_binary_expr(binary);
@@ -227,7 +227,7 @@ impl Expr {
                 return inter.visit_unary_expr(unary);
             }
             Expr::AssignExpr(assign) => {
-                !todo!();
+                return inter.visit_assign_expr(assign);
             }
             Expr::CallExpr(call) => {
                 !todo!();
