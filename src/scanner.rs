@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::token::Token;
-use crate::token_type::TokenType::{*, self};
+use crate::token_type::TokenType;
 use crate::token::Tokenliteral;
 use crate::errors::Log;
 
@@ -18,22 +18,22 @@ pub struct Scanner<'a> {
 impl Scanner<'_> {
     pub fn new<'a>(s: &'a str, log: &'a mut Log) -> Scanner<'a> {
         let mut ks = HashMap::new();
-        ks.insert("and".to_string(), And);
-        ks.insert("class".to_string(), Class);
-        ks.insert("else".to_string(), Else);
-        ks.insert("false".to_string(), False);
-        ks.insert("for".to_string(), For);
-        ks.insert("fun".to_string(), Fun);
-        ks.insert("if".to_string(), If);
-        ks.insert("nil".to_string(), Nils);
-        ks.insert("or".to_string(), Or);
-        ks.insert("print".to_string(), Print);
-        ks.insert("return".to_string(), Return);
-        ks.insert("super".to_string(), Super);
-        ks.insert("this".to_string(), This);
-        ks.insert("true".to_string(), True);
-        ks.insert("var".to_string(), Var);
-        ks.insert("while".to_string(), While);
+        ks.insert("and".to_string(), TokenType::And);
+        ks.insert("class".to_string(), TokenType::Class);
+        ks.insert("else".to_string(), TokenType::Else);
+        ks.insert("false".to_string(), TokenType::False);
+        ks.insert("for".to_string(), TokenType::For);
+        ks.insert("fun".to_string(), TokenType::Fun);
+        ks.insert("if".to_string(), TokenType::If);
+        ks.insert("nil".to_string(), TokenType::Nils);
+        ks.insert("or".to_string(), TokenType::Or);
+        ks.insert("print".to_string(), TokenType::Print);
+        ks.insert("return".to_string(), TokenType::Return);
+        ks.insert("super".to_string(), TokenType::Super);
+        ks.insert("this".to_string(), TokenType::This);
+        ks.insert("true".to_string(), TokenType::True);
+        ks.insert("var".to_string(), TokenType::Var);
+        ks.insert("while".to_string(), TokenType::While);
 
         Scanner {
             source: s.chars().collect(),
@@ -52,7 +52,7 @@ impl Scanner<'_> {
             self.scan_token();
         }
 
-        let tok = Token::new(Eofs, "", &Tokenliteral::Nil, self.line);
+        let tok = Token::new(TokenType::Eofs, "", &Tokenliteral::Nil, self.line);
         self.tokens.push(tok);
         self.tokens.clone()
     }
@@ -64,42 +64,42 @@ impl Scanner<'_> {
     fn scan_token(&mut self) {
         let c = self.advance();
         match c {
-            '(' => self.add_token(LeftParen),
-            ')' => self.add_token(RightParen),
-            '{' => self.add_token(LeftBrace),
-            '}' => self.add_token(RightBrace),
-            ',' => self.add_token(Comma),
-            '.' => self.add_token(Dot),
-            '-' => self.add_token(Minus),
-            '+' => self.add_token(Plus),
-            ';' => self.add_token(Semicolon),
-            '*' => self.add_token(Star),
+            '(' => self.add_token(TokenType::LeftParen),
+            ')' => self.add_token(TokenType::RightParen),
+            '{' => self.add_token(TokenType::LeftBrace),
+            '}' => self.add_token(TokenType::RightBrace),
+            ',' => self.add_token(TokenType::Comma),
+            '.' => self.add_token(TokenType::Dot),
+            '-' => self.add_token(TokenType::Minus),
+            '+' => self.add_token(TokenType::Plus),
+            ';' => self.add_token(TokenType::Semicolon),
+            '*' => self.add_token(TokenType::Star),
             '!' => {
                 if self.match_char('=') {
-                    self.add_token(BangEqual);
+                    self.add_token(TokenType::BangEqual);
                 } else {
-                    self.add_token(Bang);
+                    self.add_token(TokenType::Bang);
                 }
             }
             '=' => {
                 if self.match_char('=') {
-                    self.add_token(EqualEqual);
+                    self.add_token(TokenType::EqualEqual);
                 } else {
-                    self.add_token(Equal);
+                    self.add_token(TokenType::Equal);
                 }
             }
             '<' => {
                 if self.match_char('=') {
-                    self.add_token(LessEqual);
+                    self.add_token(TokenType::LessEqual);
                 } else {
-                    self.add_token(Less);
+                    self.add_token(TokenType::Less);
                 }
             }
             '>' => {
                 if self.match_char('=') {
-                    self.add_token(GreaterEqual);
+                    self.add_token(TokenType::GreaterEqual);
                 } else {
-                    self.add_token(Greater);
+                    self.add_token(TokenType::Greater);
                 }
             }
             '/'=> {
@@ -108,7 +108,7 @@ impl Scanner<'_> {
                         self.advance();
                     }                    
                 } else {
-                    self.add_token(Slash);
+                    self.add_token(TokenType::Slash);
                 }
             }
             ' ' | '\r' | '\t' => {}
@@ -181,7 +181,7 @@ impl Scanner<'_> {
         let chars = &self.source[self.start + 1..self.current - 1];
         let s = String::from_iter(chars.iter());
         let literal = Tokenliteral::Lstirng(s);
-        self.real_add_token(Strings, &literal);
+        self.real_add_token(TokenType::Strings, &literal);
     }
 
     fn handle_number(&mut self) {
@@ -201,7 +201,7 @@ impl Scanner<'_> {
         let s = String::from_iter(v.iter());
         let f = s.parse::<f64>().unwrap();
         let literal = Tokenliteral::Lnumber(f);
-        self.real_add_token(Number, &literal);
+        self.real_add_token(TokenType::Number, &literal);
     }
 
     fn handle_identifier(&mut self) {
@@ -212,7 +212,7 @@ impl Scanner<'_> {
         let text: String = self.source[self.start..self.current].iter().collect();
         let ret = self.keywords.get(&text);
         if ret.is_none() {
-            self.add_token(Identifier);
+            self.add_token(TokenType::Identifier);
         } else {
             self.add_token(ret.copied().unwrap());
         }

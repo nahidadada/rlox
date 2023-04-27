@@ -65,10 +65,23 @@ impl Function {
 pub struct If {
     pub condition: Box<Expr>,
     pub then_branch: Box<Stmt>,
-    pub else_branch: Box<Stmt>,
+    pub else_branch: Option<Box<Stmt>>,
 }
 impl If {
-
+    pub fn new(condition: &Expr, then_br: &Stmt, else_br: &Stmt) -> If {
+        If {
+            condition: Box::new(condition.clone()),
+            then_branch: Box::new(then_br.clone()),
+            else_branch: match else_br {
+                Stmt::Nil => {
+                    None
+                }
+                _ => {
+                    Some(Box::new(else_br.clone()))
+                }
+            } ,
+        }
+    }
 }
 
 /////////////////////////////////
@@ -131,6 +144,7 @@ pub enum Stmt {
     ReturnStmt(Return),
     VarStmt(Var),
     WhileStmt(While),
+    Nil,
 }
 impl Stmt {
     pub fn accept(&self, intr: &mut Interpreter) {
@@ -143,7 +157,9 @@ impl Stmt {
                 intr.visit_expression_stmt(stmt);
             },
             Stmt::FunctionStmt(_) => todo!(),
-            Stmt::IfStmt(_) => todo!(),
+            Stmt::IfStmt(stmt) => {
+                intr.visit_if_stmt(stmt);
+            },
             Stmt::PrintStmt(stmt) => {
                 intr.visit_print_stmt(stmt);
             },
@@ -152,6 +168,7 @@ impl Stmt {
                 intr.visit_var_stmt(stmt);
             },
             Stmt::WhileStmt(_) => todo!(),
+            Stmt::Nil => {unimplemented!()}
         }
     }
 }
