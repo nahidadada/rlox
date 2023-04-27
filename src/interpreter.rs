@@ -134,11 +134,11 @@ impl ExprVisitor for Interpreter<'_> {
         return ret;
     }
 
-    fn visit_call_expr(&mut self, _expr: crate::expr::Call) {
+    fn visit_call_expr(&mut self, _expr: &crate::expr::Call) {
         todo!()
     }
 
-    fn visit_get_expr(&mut self, _expr: crate::expr::Get) {
+    fn visit_get_expr(&mut self, _expr: &crate::expr::Get) {
         todo!()
     }
 
@@ -156,19 +156,36 @@ impl ExprVisitor for Interpreter<'_> {
         return Ok(expr.value.clone());
     }
 
-    fn visit_logical_expr(&mut self, _expr: crate::expr::Logical) {
+    fn visit_logical_expr(&mut self, expr: &crate::expr::Logical) -> Result<Tokenliteral, LoxError> {
+        let left = self.evalute(&expr.left)?;
+
+        match &expr.operator.token_type {
+            TokenType::Or => {
+                if self.is_truthy(&left) {
+                    return Ok(left);
+                }
+            }
+            TokenType::And => {
+                if !self.is_truthy(&left) {
+                    return Ok(left);
+                }
+            }
+            _ => {
+                return Err(LoxError::RuntimeError(expr.operator.clone(), "logical operator error".to_string()));
+            }
+        }
+        return self.evalute(&expr.right);
+    }
+
+    fn visit_set_expr(&mut self, _expr: &crate::expr::Set) {
         todo!()
     }
 
-    fn visit_set_expr(&mut self, _expr: crate::expr::Set) {
+    fn visit_super_expr(&mut self, _expr: &crate::expr::Super) {
         todo!()
     }
 
-    fn visit_super_expr(&mut self, _expr: crate::expr::Super) {
-        todo!()
-    }
-
-    fn visit_this_expr(&mut self, _expr: crate::expr::This) {
+    fn visit_this_expr(&mut self, _expr: &crate::expr::This) {
         todo!()
     }
 

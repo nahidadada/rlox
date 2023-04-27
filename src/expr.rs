@@ -6,14 +6,14 @@ use crate::token::Tokenliteral;
 pub trait ExprVisitor {
     fn visit_assign_expr(&mut self, expr: &Assign) -> Result<Tokenliteral, LoxError>;
     fn visit_binary_expr(&mut self, expr: &Binary) -> Result<Tokenliteral, LoxError>;
-    fn visit_call_expr(&mut self, expr: Call);
-    fn visit_get_expr(&mut self, expr: Get);
+    fn visit_call_expr(&mut self, expr: &Call);
+    fn visit_get_expr(&mut self, expr: &Get);
     fn visit_grouping_expr(&mut self, expr: &Grouping) -> Result<Tokenliteral, LoxError>;
     fn visit_literal_expr(&mut self, expr: &Literal) -> Result<Tokenliteral, LoxError>;
-    fn visit_logical_expr(&mut self, expr: Logical);
-    fn visit_set_expr(&mut self, expr: Set);
-    fn visit_super_expr(&mut self, expr: Super);
-    fn visit_this_expr(&mut self, expr: This);
+    fn visit_logical_expr(&mut self, expr: &Logical) -> Result<Tokenliteral, LoxError>;
+    fn visit_set_expr(&mut self, expr: &Set);
+    fn visit_super_expr(&mut self, expr: &Super);
+    fn visit_this_expr(&mut self, expr: &This);
     fn visit_unary_expr(&mut self, expr: &Unary) -> Result<Tokenliteral, LoxError>;
     fn visit_variable_expr(&mut self, expr: &Variable) -> Result<Tokenliteral, LoxError>;
 }
@@ -109,9 +109,9 @@ impl Literal {
 //////////////////////////////////
 #[derive(Debug, Clone)]
 pub struct Logical {
-    left: Box<Expr>,
-    operator: Token,
-    right: Box<Expr>,
+    pub left: Box<Expr>,
+    pub operator: Token,
+    pub right: Box<Expr>,
 }
 impl Logical {
     pub fn new(left: &Expr, op: &Token, right: &Expr) -> Logical {
@@ -235,8 +235,8 @@ impl Expr {
             Expr::GetExpr(_) => {
                 todo!();
             },
-            Expr::LogicalExpr(_) => {
-                todo!();
+            Expr::LogicalExpr(expr) => {
+                return inter.visit_logical_expr(expr);
             },
             Expr::SetExpr(_) => {
                 todo!();
