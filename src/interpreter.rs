@@ -29,7 +29,7 @@ impl Interpreter<'_> {
                         break;
                     }
                 }
-                Err(e) => {
+                Err(_e) => {
                     break;
                 }
             }
@@ -40,15 +40,20 @@ impl Interpreter<'_> {
         stmt.accept(self);
     }
 
-    fn execute_block(&mut self, stmt: &Vec<Box<Stmt>>, env: &Environment) {
+    fn execute_block(&mut self, stmt: &Vec<Box<Stmt>>, env: &mut Environment) {
         let outer_env = self.environment.clone();
 
         self.environment = env.clone();
+
         for elem in stmt.iter() {
             self.execute(elem);
         }
 
-        self.environment = outer_env;
+        if self.environment.is_have_visitor() {
+            self.environment = self.environment.get_env_visitor();
+        } else {
+            self.environment = outer_env;
+        }
     }
 
     fn evalute(&mut self, expr: &Expr) -> Result<Tokenliteral, LoxError> {
@@ -218,8 +223,8 @@ impl ExprVisitor for Interpreter<'_> {
 
 impl StmtVisitor for Interpreter<'_> {
     fn visit_block_stmt(&mut self, stmt: &crate::stmt::Block) {
-        let env = Environment::new_with_visitor(&self.environment);
-        self.execute_block(&stmt.statements, &env);
+         let mut env = Environment::new_with_visitor(&self.environment);
+         self.execute_block(&stmt.statements, &mut env);
     }
 
     fn visit_class_stmt(&mut self, stmt: &crate::stmt::Class) {
@@ -278,6 +283,20 @@ impl StmtVisitor for Interpreter<'_> {
     }
 
     fn visit_while_stmt(&mut self, stmt: &crate::stmt::While) {
-        todo!()
+        loop {
+            let ret = self.evalute(&stmt.condition);
+            match ret {
+                Ok(literal) => {
+                    if self.is_truthy(&literal) {
+                        self.execute(&stmt.body);
+                    } else {
+                        break;
+                    }
+                }
+                Err(_e) => {
+                    break;
+                }
+            }
+        }
     }
 }

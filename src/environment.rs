@@ -1,13 +1,12 @@
 use std::{collections::HashMap};
-
 use crate::{errors::LoxError, token::{Token, Tokenliteral}};
-
 
 #[derive(Clone)]
 pub struct Environment {
     values: HashMap<String, Tokenliteral>,
-    env_visitor: Option<Box<Environment>>,//TODO use reference
+    env_visitor: Option<Box<Environment>>,//TODO: use reference
 }
+
 impl Environment {
     pub fn new() -> Environment {
         Environment { 
@@ -15,10 +14,28 @@ impl Environment {
             env_visitor: None,
         }
     }
-    pub fn new_with_visitor(visitor: &Environment) -> Environment {
+    
+    pub fn new_with_visitor(env: &Environment) -> Environment {
         Environment {
             values: HashMap::new(),
-            env_visitor: Some(Box::new(visitor.clone())),
+            env_visitor: Some(Box::new(env.clone())),
+        }
+    }
+
+    pub fn is_have_visitor(&self) -> bool {
+        self.env_visitor.is_some()
+    }
+
+    pub fn get_env_visitor(&mut self) -> Environment {
+        match &self.env_visitor {
+            Some(env) => {
+                let a = env;
+                let a = a.clone();
+                *a
+            }
+            None => {
+                panic!("get_env_visitor");
+            }
         }
     }
 

@@ -129,7 +129,12 @@ pub struct While {
     pub body: Box<Stmt>,
 }
 impl While {
-
+    pub fn new(condition: &Expr, body: &Stmt) -> While {
+        While { 
+            condition: Box::new(condition.clone()), 
+            body: Box::new(body.clone()) 
+        }
+    }
 }
 
 ///////////////////////////////////
@@ -167,7 +172,9 @@ impl Stmt {
             Stmt::VarStmt(stmt) => {
                 intr.visit_var_stmt(stmt);
             },
-            Stmt::WhileStmt(_) => todo!(),
+            Stmt::WhileStmt(stmt) => {
+                intr.visit_while_stmt(stmt);
+            },
             Stmt::Nil => {unimplemented!()}
         }
     }
