@@ -61,6 +61,9 @@ impl Parser<'_> {
     }
 
     fn statement(&mut self) -> Result<Stmt, LoxError> {
+        if self.is_match(&[TokenType::For]) {
+            return self.for_statement();
+        }
         if self.is_match(&[TokenType::If]) {
             return self.if_statement();
         }
@@ -75,6 +78,48 @@ impl Parser<'_> {
             return Ok(Stmt::BlockStmt(stmt::Block::new(&ret)));
         }
         return self.expression_statement();
+    }
+
+    fn for_statement(&mut self) -> Result<Stmt, LoxError> {
+        self.consume(&TokenType::LeftParen, "Expect '(' after 'for'.")?;
+
+        let mut initializer: Option<Stmt> = None;
+        if self.is_match(&[TokenType::Semicolon]) {
+        } else if self.is_match(&[TokenType::Var]) {
+            initializer = Some(self.var_declaration()?);
+        } else {
+            initializer = Some(self.expression_statement()?);
+        }
+
+        let mut condition: Option<Expr> = None;
+        if !self.check(&TokenType::Semicolon) {
+            condition = Some(self.expression()?);
+        }
+        self.consume(&TokenType::Semicolon, "Expect ';' after loop condition.")?;
+
+        let mut increment: Option<Expr> = None;
+        if !self.check(&TokenType::RightParen) {
+            increment = Some(self.expression()?);
+        }
+        self.consume(&TokenType::RightParen, "Expect ')' after for clauses.")?;
+
+        let mut body = self.statement()?;
+        if let Some(inc_expr) = increment {
+            let arr = vec![Box::new(body.clone()), Box::new(Stmt::ExpressionStmt(stmt::Expression::new(&inc_expr)))];
+            body = Stmt::BlockStmt(stmt::Block::new(&arr));
+        }
+
+        if condition.is_none() {
+            condition = Some(Expr::LiteralExpr(expr::Literal::new(&Tokenliteral::Lbool(true))));
+        }
+        body = Stmt::WhileStmt(stmt::While::new(&condition.unwrap(), &body));
+
+        if let Some(init_expr) = initializer {
+            let arr = vec![Box::new(init_expr.clone()), Box::new(body.clone())];
+            body = Stmt::BlockStmt(stmt::Block::new(&arr));
+        }
+
+        return Ok(body);
     }
 
     fn if_statement(&mut self) -> Result<Stmt, LoxError> {
