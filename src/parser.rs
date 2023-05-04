@@ -31,6 +31,14 @@ impl Parser<'_> {
     }
 
     fn declaration(&mut self) -> Result<Stmt, LoxError> {
+        if self.is_match(&[TokenType::Fun]) {
+            let ret = self.function("function");
+            if ret.is_err() {
+                self.synchronize();
+            }
+            return ret;
+        }
+
         if self.is_match(&[TokenType::Var]) {
             let ret = self.var_declaration();
             if ret.is_err() {
@@ -44,6 +52,44 @@ impl Parser<'_> {
             self.synchronize();
         }
         return ret;
+    }
+
+    fn function(&mut self, msg: &str) -> Result<Stmt, LoxError> {
+        let mut err_msg = "Expect ".to_string();
+        err_msg.push_str(msg);
+        err_msg.push_str(" name.");
+
+        let name = self.consume(&TokenType::Identifier, &err_msg)?;
+
+        err_msg.clear();
+        err_msg = "Expect '(' after ".to_string();
+        err_msg.push_str(msg);
+        err_msg.push_str(" name.");
+        self.consume(&TokenType::LeftParen, &err_msg)?;
+
+        let mut parameters = Vec::new();
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                if parameters.len() >= 255 {
+                    let _ret = self.error(&self.peek(), "Can't have more than 255 parameters.");
+                }
+                parameters.push(self.consume(&TokenType::Identifier, "Expect parameter name.")?);
+                if !self.is_match(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+        self.consume(&TokenType::RightParen, "Expect ')' after parameters.")?;
+
+        err_msg.clear();
+        err_msg = "Expect '{' before ".to_string();
+        err_msg.push_str(msg);
+        err_msg.push_str(" body.");
+        self.consume(&TokenType::LeftBrace, &err_msg)?;
+
+        let body = self.block()?;
+        return Ok(Stmt::FunctionStmt(stmt::Function::new(&name, &parameters, &body)));
+
     }
 
     fn var_declaration(&mut self) -> Result<Stmt, LoxError> {
@@ -270,7 +316,39 @@ impl Parser<'_> {
             let right = self.unary()?;
             return Ok(Expr::UnaryExpr(expr::Unary::new(&op, &right)));
         }
-        return self.primary();
+        return self.call();
+    }
+
+    fn call(&mut self) -> Result<Expr, LoxError> {
+        let mut expr = self.primary()?;
+
+        loop {
+            if self.is_match(&[TokenType::LeftParen]) {
+                expr = self.finish_call(&expr)?;
+            } else {
+                break;
+            }
+        }
+        return Ok(expr);
+    }
+
+    fn finish_call(&mut self, callee: &Expr) -> Result<Expr, LoxError> {
+        let mut arguments = Vec::new();
+        
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                if arguments.len() >= 255 {
+                    let _e = self.error(&self.peek(), "Can't have more than 255 arguments.").map(|_| Expr::Nil);
+                }
+                arguments.push(Box::new(self.expression()?));
+                if !self.is_match(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+
+        let paren = self.consume(&TokenType::RightParen, "Expect ')' after arguments.")?;
+        return Ok(Expr::CallExpr(expr::Call::new(&callee, &paren, &arguments)));
     }
 
     fn primary(&mut self) -> Result<Expr, LoxError> {
@@ -285,7 +363,8 @@ impl Parser<'_> {
         }
 
         if self.is_match(&[TokenType::Number, TokenType::Strings]) {
-            return Ok(Expr::LiteralExpr(expr::Literal::new(&self.previous().literal)));
+            let tok = self.previous();
+            return Ok(Expr::LiteralExpr(expr::Literal::new(&tok.literal)));
         }
 
         if self.is_match(&[TokenType::Identifier]) {

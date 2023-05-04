@@ -14,6 +14,7 @@ mod stmt;
 mod token;
 mod token_type;
 mod environment;
+mod loxfunction;
 use errors::Log;
 use interpreter::Interpreter;
 use parser::Parser;

@@ -6,7 +6,7 @@ use crate::token::Tokenliteral;
 pub trait ExprVisitor {
     fn visit_assign_expr(&mut self, expr: &Assign) -> Result<Tokenliteral, LoxError>;
     fn visit_binary_expr(&mut self, expr: &Binary) -> Result<Tokenliteral, LoxError>;
-    fn visit_call_expr(&mut self, expr: &Call);
+    fn visit_call_expr(&mut self, expr: &Call) -> Result<Tokenliteral, LoxError>;
     fn visit_get_expr(&mut self, expr: &Get);
     fn visit_grouping_expr(&mut self, expr: &Grouping) -> Result<Tokenliteral, LoxError>;
     fn visit_literal_expr(&mut self, expr: &Literal) -> Result<Tokenliteral, LoxError>;
@@ -53,12 +53,12 @@ impl Binary {
 /////////////////////////
 #[derive(Debug, Clone)]
 pub struct Call {
-    callee: Box<Expr>,
-    paren: Token,
-    arguments: Vec<Expr>,
+    pub callee: Box<Expr>,
+    pub paren: Token,
+    pub arguments: Vec<Box<Expr>>,
 }
 impl Call {
-    pub fn new(callee: &Expr, paren: &Token, args: &Vec<Expr>) -> Call {
+    pub fn new(callee: &Expr, paren: &Token, args: &Vec<Box<Expr>>) -> Call {
         Call {
             callee: Box::new(callee.clone()),
             paren: paren.clone(),
@@ -102,7 +102,9 @@ pub struct Literal {
 }
 impl Literal {
     pub fn new(s: &Tokenliteral) -> Literal {
-        Literal { value: s.clone() }
+        Literal { 
+            value: s.clone() 
+        }
     }
 }
 
@@ -230,7 +232,7 @@ impl Expr {
                 return inter.visit_assign_expr(assign);
             }
             Expr::CallExpr(call) => {
-                !todo!();
+                return inter.visit_call_expr(call);
             }
             Expr::GetExpr(_) => {
                 todo!();

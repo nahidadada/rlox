@@ -1,12 +1,13 @@
 use std::fmt;
 
-use crate::token_type::TokenType;
+use crate::{token_type::TokenType, loxfunction::{LoxFunction}};
 
 #[derive(Clone, Debug)]
 pub enum Tokenliteral {
     Lstirng(String),
     Lnumber(f64),
     Lbool(bool),
+    LCall(LoxFunction),
     Nil,
 }
 impl fmt::Display for Tokenliteral {
@@ -16,6 +17,12 @@ impl fmt::Display for Tokenliteral {
             Tokenliteral::Lnumber(v) => write!(f, "{}", v),
             Tokenliteral::Lbool(v) => write!(f, "{}", v),
             Tokenliteral::Nil => write!(f, "Nil", ),
+            Tokenliteral::LCall(v) => {
+                let mut s = "<fn ".to_string();
+                s.push_str(&v.name);
+                s.push_str(">");
+                write!(f, "{}", s)
+            }
         }
     }
 }

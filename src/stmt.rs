@@ -57,7 +57,13 @@ pub struct Function {
     pub body: Vec<Box<Stmt>>,
 }
 impl Function {
-
+    pub fn new(name: &Token, parameters: &Vec<Token>, body: &Vec<Box<Stmt>>) -> Function {
+        Function { 
+            name: name.clone(), 
+            params: parameters.clone(), 
+            body: body.clone() 
+        }
+    }
 }
 
 ///////////////////////////////
@@ -161,7 +167,9 @@ impl Stmt {
             Stmt::ExpressionStmt(stmt) => {
                 intr.visit_expression_stmt(stmt);
             },
-            Stmt::FunctionStmt(_) => todo!(),
+            Stmt::FunctionStmt(stmt) => {
+                intr.visit_function_stmt(stmt);
+            },
             Stmt::IfStmt(stmt) => {
                 intr.visit_if_stmt(stmt);
             },

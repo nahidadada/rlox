@@ -1,6 +1,8 @@
 use crate::environment::Environment;
 use crate::errors::{Log, LoxError};
+use crate::loxfunction::{LoxCallable, LoxFunction};
 use crate::stmt::{Stmt, StmtVisitor};
+use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::{
     expr::{Expr, ExprVisitor},
@@ -9,13 +11,15 @@ use crate::{
 
 pub struct Interpreter<'a> {
     errors: &'a mut Log,
-    environment: Environment,
+    pub globals: Environment,
+    pub environment: Environment,
 }
 
 impl Interpreter<'_> {
     pub fn new(log: &mut Log) -> Interpreter {
         Interpreter {
             errors: log,
+            globals: Environment::new(),
             environment: Environment::new(),
         }
     }
@@ -40,7 +44,7 @@ impl Interpreter<'_> {
         stmt.accept(self);
     }
 
-    fn execute_block(&mut self, stmt: &Vec<Box<Stmt>>, env: &mut Environment) {
+    pub fn execute_block(&mut self, stmt: &Vec<Box<Stmt>>, env: &mut Environment) {
         let outer_env = self.environment.clone();
 
         self.environment = env.clone();
@@ -65,6 +69,7 @@ impl Interpreter<'_> {
             Tokenliteral::Lnumber(_) => return true,
             Tokenliteral::Lbool(v) => return *v,
             Tokenliteral::Nil => return false,
+            Tokenliteral::LCall(_) => return true,
         }
     }
     fn is_equal(&self, left: &Tokenliteral, right: &Tokenliteral) -> bool {
@@ -139,8 +144,26 @@ impl ExprVisitor for Interpreter<'_> {
         return ret;
     }
 
-    fn visit_call_expr(&mut self, _expr: &crate::expr::Call) {
-        todo!()
+    fn visit_call_expr(&mut self, expr: &crate::expr::Call) -> Result<Tokenliteral, LoxError> {
+        let callee = self.evalute(&expr.callee)?;
+
+        let mut arguments = Vec::new();
+        for arg in expr.arguments.iter() {
+            let literal = self.evalute(arg)?;
+            arguments.push(literal);
+        }
+    
+        match callee {
+            Tokenliteral::LCall(mut call) => {
+                if arguments.len() != call.arity() {
+                    return Err(LoxError::RuntimeError(expr.paren.clone(), "arg size must match".to_string()));
+                }
+                return call.call(self, &arguments);
+            }
+            _ => {
+                return Err(LoxError::RuntimeError(expr.paren.clone(), "must be func".to_string()));
+            }
+        }
     }
 
     fn visit_get_expr(&mut self, _expr: &crate::expr::Get) {
@@ -236,7 +259,8 @@ impl StmtVisitor for Interpreter<'_> {
     }
 
     fn visit_function_stmt(&mut self, stmt: &crate::stmt::Function) {
-        todo!()
+        let function = LoxFunction::new(&stmt.name.lexeme, &Box::new(Stmt::FunctionStmt(stmt.clone())));
+        self.environment.define(&stmt.name, &Tokenliteral::LCall(function.clone()));
     }
 
     fn visit_if_stmt(&mut self, stmt: &crate::stmt::If) {
