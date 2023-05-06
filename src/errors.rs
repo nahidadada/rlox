@@ -1,10 +1,12 @@
-use crate::{token::Token, token_type::{TokenType}};
+use crate::{token::{Token, Tokenliteral}, token_type::{TokenType}};
 
 #[derive(Debug)]
 pub enum LoxError {
     ParseError,
     RuntimeError(Token, String),
     ValueError(String),
+    Return(Tokenliteral),
+    Nil,
 }
 
 pub struct Log {

@@ -1,3 +1,5 @@
+use std::{rc::Rc, cell::RefCell};
+
 use crate::{token::{Tokenliteral}, interpreter::Interpreter, stmt::Stmt, environment::Environment, errors::LoxError};
 
 pub trait LoxCallable {
@@ -33,13 +35,13 @@ impl LoxCallable for LoxFunction {
     }
 
     fn call(&mut self, inter: &mut Interpreter, params: &Vec<Tokenliteral>) -> Result<Tokenliteral, LoxError> {
-        let mut env = Environment::new_with_visitor(&inter.globals);
+        let env = Rc::new(RefCell::new(Environment::new_with_visitor(&inter.globals)));
 
         match *self.declaration.clone(){
             Stmt::FunctionStmt(stmt) => {
                 for (idx, tok) in stmt.params.iter().enumerate() {
                     let v = params.get(idx).unwrap();
-                    env.define(tok, &v);
+                    env.borrow_mut().define(tok, v);
                 }
             }
             _ => {
@@ -49,13 +51,24 @@ impl LoxCallable for LoxFunction {
 
         match *self.declaration.clone() {
             Stmt::FunctionStmt(stmt) => {
-                inter.execute_block(&stmt.body, &mut env)
+                let ret = inter.execute_block(&stmt.body, &env);
+                match ret {
+                    Ok(v) => {
+                        return Ok(v);
+                    }
+                    Err(LoxError::Return(v)) => {
+                        return Ok(v)
+                    }
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+                
             }
             _ => {
                 unreachable!("must be func stmt");
             }
         }    
-        return Ok(Tokenliteral::Nil);
     }
 }
 

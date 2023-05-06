@@ -1,10 +1,9 @@
-use std::{collections::HashMap};
+use std::{collections::HashMap, rc::Rc, cell::RefCell};
 use crate::{errors::LoxError, token::{Token, Tokenliteral}};
 
-#[derive(Clone)]
 pub struct Environment {
     values: HashMap<String, Tokenliteral>,
-    env_visitor: Option<Box<Environment>>,//TODO: use reference
+    env_visitor: Option<Rc<RefCell<Environment>>>,
 }
 
 impl Environment {
@@ -15,27 +14,10 @@ impl Environment {
         }
     }
     
-    pub fn new_with_visitor(env: &Environment) -> Environment {
+    pub fn new_with_visitor(env: &Rc<RefCell<Environment>>) -> Environment {
         Environment {
             values: HashMap::new(),
-            env_visitor: Some(Box::new(env.clone())),
-        }
-    }
-
-    pub fn is_have_visitor(&self) -> bool {
-        self.env_visitor.is_some()
-    }
-
-    pub fn get_env_visitor(&mut self) -> Environment {
-        match &self.env_visitor {
-            Some(env) => {
-                let a = env;
-                let a = a.clone();
-                *a
-            }
-            None => {
-                panic!("get_env_visitor");
-            }
+            env_visitor: Some(Rc::clone(env)),
         }
     }
 
@@ -50,7 +32,7 @@ impl Environment {
         }
 
         if let Some(enclosing) = &self.env_visitor {
-            return enclosing.get(name);
+            return enclosing.borrow().get(name);
         }
 
         let mut msg = "Undefined variable '".to_string();
@@ -67,7 +49,7 @@ impl Environment {
         }
 
         if let Some(enclosing) = &mut self.env_visitor {
-            return enclosing.assign(name, value);
+            return enclosing.borrow_mut().assign(name, value);
         }
 
         let mut msg = String::from("Undefined variable '");

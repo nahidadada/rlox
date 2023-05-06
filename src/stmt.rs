@@ -1,15 +1,15 @@
-use crate::{token::Token, expr::Expr, interpreter::Interpreter};
+use crate::{token::{Token, Tokenliteral}, expr::Expr, interpreter::Interpreter, errors::LoxError};
 
 pub trait StmtVisitor {
-    fn visit_block_stmt(&mut self, stmt: &Block);
-    fn visit_class_stmt(&mut self, stmt: &Class);
-    fn visit_expression_stmt(&mut self, stmt: &Expression);
-    fn visit_function_stmt(&mut self, stmt: &Function);
-    fn visit_if_stmt(&mut self, stmt: &If);
-    fn visit_print_stmt(&mut self, stmt: &Print);
-    fn visit_return_stmt(&mut self, stmt: &Return);
-    fn visit_var_stmt(&mut self, stmt: &Var);
-    fn visit_while_stmt(&mut self, stmt: &While);
+    fn visit_block_stmt(&mut self, stmt: &Block) -> Result<Tokenliteral, LoxError>;
+    fn visit_class_stmt(&mut self, stmt: &Class) -> Result<Tokenliteral, LoxError>;
+    fn visit_expression_stmt(&mut self, stmt: &Expression) -> Result<Tokenliteral, LoxError>;
+    fn visit_function_stmt(&mut self, stmt: &Function) -> Result<Tokenliteral, LoxError>;
+    fn visit_if_stmt(&mut self, stmt: &If) -> Result<Tokenliteral, LoxError>;
+    fn visit_print_stmt(&mut self, stmt: &Print) -> Result<Tokenliteral, LoxError>;
+    fn visit_return_stmt(&mut self, stmt: &Return) -> Result<Tokenliteral, LoxError>;
+    fn visit_var_stmt(&mut self, stmt: &Var) -> Result<Tokenliteral, LoxError>;
+    fn visit_while_stmt(&mut self, stmt: &While) -> Result<Tokenliteral, LoxError>;
 
 }
 ///////////////////////
@@ -107,10 +107,22 @@ impl Print {
 #[derive(Debug, Clone)]
 pub struct Return {
     pub keyword: Token,
-    pub value: Box<Expr>,
+    pub value: Option<Box<Expr>>,
 }
 impl Return {
-
+    pub fn new(keyword: &Token, value: &Expr) -> Return {
+        Return {
+            keyword: keyword.clone(),
+            value: match value {
+                Expr::Nil => {
+                    None
+                }
+                _ => {
+                    Some(Box::new(value.clone()))
+                }
+            }
+        }
+    }
 }
 
 //////////////////////////////////
@@ -158,32 +170,35 @@ pub enum Stmt {
     Nil,
 }
 impl Stmt {
-    pub fn accept(&self, intr: &mut Interpreter) {
-        match self {
+    pub fn accept(&self, intr: &mut Interpreter) -> Result<Tokenliteral, LoxError> {
+        let ret = match self {
             Stmt::BlockStmt(stmt) => {
-                intr.visit_block_stmt(stmt);
+                intr.visit_block_stmt(stmt)
             },
             Stmt::ClassStmt(_) => todo!(),
             Stmt::ExpressionStmt(stmt) => {
-                intr.visit_expression_stmt(stmt);
+                intr.visit_expression_stmt(stmt)
             },
             Stmt::FunctionStmt(stmt) => {
-                intr.visit_function_stmt(stmt);
+                intr.visit_function_stmt(stmt)
             },
             Stmt::IfStmt(stmt) => {
-                intr.visit_if_stmt(stmt);
+                intr.visit_if_stmt(stmt)
             },
             Stmt::PrintStmt(stmt) => {
-                intr.visit_print_stmt(stmt);
+                intr.visit_print_stmt(stmt)
             },
-            Stmt::ReturnStmt(_) => todo!(),
+            Stmt::ReturnStmt(stmt) => {
+                intr.visit_return_stmt(stmt)
+            }
             Stmt::VarStmt(stmt) => {
-                intr.visit_var_stmt(stmt);
+                intr.visit_var_stmt(stmt)
             },
             Stmt::WhileStmt(stmt) => {
-                intr.visit_while_stmt(stmt);
+                intr.visit_while_stmt(stmt)
             },
             Stmt::Nil => {unimplemented!()}
-        }
+        };
+        return ret;
     }
 }

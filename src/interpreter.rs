@@ -1,8 +1,10 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::environment::Environment;
 use crate::errors::{Log, LoxError};
 use crate::loxfunction::{LoxCallable, LoxFunction};
 use crate::stmt::{Stmt, StmtVisitor};
-use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::{
     expr::{Expr, ExprVisitor},
@@ -11,16 +13,16 @@ use crate::{
 
 pub struct Interpreter<'a> {
     errors: &'a mut Log,
-    pub globals: Environment,
-    pub environment: Environment,
+    pub globals: Rc<RefCell<Environment>>,
+    pub environment: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter<'_> {
     pub fn new(log: &mut Log) -> Interpreter {
         Interpreter {
             errors: log,
-            globals: Environment::new(),
-            environment: Environment::new(),
+            globals: Rc::new(RefCell::new(Environment::new())),
+            environment: Rc::new(RefCell::new(Environment::new())),
         }
     }
 
@@ -28,7 +30,7 @@ impl Interpreter<'_> {
         for stmt in statements.iter() {
             match stmt {
                 Ok(s) => {
-                    self.execute(s);
+                    let _ret = self.execute(s);
                     if self.errors.had_runtime_error() {
                         break;
                     }
@@ -40,24 +42,23 @@ impl Interpreter<'_> {
         }
     }
 
-    fn execute(&mut self, stmt: &Stmt) {
-        stmt.accept(self);
+    fn execute(&mut self, stmt: &Stmt) -> Result<Tokenliteral, LoxError> {
+        return stmt.accept(self);
     }
 
-    pub fn execute_block(&mut self, stmt: &Vec<Box<Stmt>>, env: &mut Environment) {
-        let outer_env = self.environment.clone();
+    pub fn execute_block(&mut self, stmt: &Vec<Box<Stmt>>, env: & Rc<RefCell<Environment>>) -> Result<Tokenliteral, LoxError> {
+        let previous = Rc::clone(&self.environment);
 
-        self.environment = env.clone();
+        self.environment = Rc::clone(env);
 
+        let mut ret = Tokenliteral::Nil;
         for elem in stmt.iter() {
-            self.execute(elem);
+            ret = self.execute(elem)?;
         }
 
-        if self.environment.is_have_visitor() {
-            self.environment = self.environment.get_env_visitor();
-        } else {
-            self.environment = outer_env;
-        }
+        self.environment = Rc::clone(&previous);
+
+        return Ok(ret);
     }
 
     fn evalute(&mut self, expr: &Expr) -> Result<Tokenliteral, LoxError> {
@@ -104,7 +105,7 @@ impl Interpreter<'_> {
 impl ExprVisitor for Interpreter<'_> {
     fn visit_assign_expr(&mut self, expr: &crate::expr::Assign) -> Result<Tokenliteral, LoxError> {
         let value = self.evalute(&expr.value)?;
-        self.environment.assign(&expr.name, &value)?;
+        self.environment.borrow_mut().assign(&expr.name, &value)?;
         return Ok(value);
     }
 
@@ -240,41 +241,45 @@ impl ExprVisitor for Interpreter<'_> {
         &mut self,
         expr: &crate::expr::Variable,
     ) -> Result<Tokenliteral, LoxError> {
-        return self.environment.get(&expr.name);
+        return self.environment.borrow().get(&expr.name);
     }
 }
 
 impl StmtVisitor for Interpreter<'_> {
-    fn visit_block_stmt(&mut self, stmt: &crate::stmt::Block) {
-         let mut env = Environment::new_with_visitor(&self.environment);
-         self.execute_block(&stmt.statements, &mut env);
+    fn visit_block_stmt(&mut self, stmt: &crate::stmt::Block) -> Result<Tokenliteral, LoxError> {
+         let mut env = Rc::new(RefCell::new(Environment::new_with_visitor(&Rc::clone(&self.environment))));
+         return self.execute_block(&stmt.statements, &env);
     }
 
-    fn visit_class_stmt(&mut self, stmt: &crate::stmt::Class) {
+    fn visit_class_stmt(&mut self, stmt: &crate::stmt::Class) -> Result<Tokenliteral, LoxError> {
         todo!()
     }
 
-    fn visit_expression_stmt(&mut self, stmt: &crate::stmt::Expression) {
-        let _ret = self.evalute(&stmt.expression);
+    fn visit_expression_stmt(&mut self, stmt: &crate::stmt::Expression) -> Result<Tokenliteral, LoxError> {
+        return self.evalute(&stmt.expression);
     }
 
-    fn visit_function_stmt(&mut self, stmt: &crate::stmt::Function) {
+    fn visit_function_stmt(&mut self, stmt: &crate::stmt::Function) -> Result<Tokenliteral, LoxError> {
         let function = LoxFunction::new(&stmt.name.lexeme, &Box::new(Stmt::FunctionStmt(stmt.clone())));
-        self.environment.define(&stmt.name, &Tokenliteral::LCall(function.clone()));
+        self.environment.borrow_mut().define(&stmt.name, &Tokenliteral::LCall(function.clone()));
+        return Ok(Tokenliteral::Nil);
     }
 
-    fn visit_if_stmt(&mut self, stmt: &crate::stmt::If) {
-        let ret = self.evalute(&stmt.condition);
-        if ret.is_ok() {
-            if self.is_truthy(&ret.unwrap()) {
-                self.execute(&stmt.then_branch);
+    fn visit_if_stmt(&mut self, stmt: &crate::stmt::If) -> Result<Tokenliteral, LoxError> {
+        let result = self.evalute(&stmt.condition);
+        let mut ret = Tokenliteral::Nil;
+
+        if result.is_ok() {
+            if self.is_truthy(&result.unwrap()) {
+                ret = self.execute(&stmt.then_branch)?;
             } else if let Some(ref else_br) = stmt.else_branch {
-                self.execute(else_br);
+                ret = self.execute(else_br)?;
             }
         }
+        return Ok(ret);
     }
 
-    fn visit_print_stmt(&mut self, stmt: &crate::stmt::Print) {
+    fn visit_print_stmt(&mut self, stmt: &crate::stmt::Print) -> Result<Tokenliteral, LoxError> {
         let value = self.evalute(&stmt.expression);
         match value {
             Ok(token) => {
@@ -284,13 +289,18 @@ impl StmtVisitor for Interpreter<'_> {
                 self.errors.runtime_error(&e);
             }
         }
+        Ok(Tokenliteral::Nil)
     }
 
-    fn visit_return_stmt(&mut self, stmt: &crate::stmt::Return) {
-        todo!()
+    fn visit_return_stmt(&mut self, stmt: &crate::stmt::Return) -> Result<Tokenliteral, LoxError> {
+        let mut value = Tokenliteral::Nil;
+        if let Some(expr) = &stmt.value {
+            value = self.evalute(&expr)?;
+        }
+        return Err(LoxError::Return(value));
     }
 
-    fn visit_var_stmt(&mut self, stmt: &crate::stmt::Var) {
+    fn visit_var_stmt(&mut self, stmt: &crate::stmt::Var) -> Result<Tokenliteral, LoxError> {
         let mut value = Ok(Tokenliteral::Nil);
         match *stmt.initializer {
             Expr::Nil => {}
@@ -300,27 +310,30 @@ impl StmtVisitor for Interpreter<'_> {
         }
 
         if let Ok(v) = value {
-            self.environment.define(&stmt.name, &v);
+            self.environment.borrow_mut().define(&stmt.name, &v);
         } else {
             println!("visit var stmt error");
         }
+        Ok(Tokenliteral::Nil)
     }
 
-    fn visit_while_stmt(&mut self, stmt: &crate::stmt::While) {
+    fn visit_while_stmt(&mut self, stmt: &crate::stmt::While) -> Result<Tokenliteral, LoxError> {
+        let mut ret  = Tokenliteral::Nil;
         loop {
-            let ret = self.evalute(&stmt.condition);
-            match ret {
+            let result = self.evalute(&stmt.condition);
+            match result {
                 Ok(literal) => {
                     if self.is_truthy(&literal) {
-                        self.execute(&stmt.body);
+                        ret = self.execute(&stmt.body)?;
                     } else {
                         break;
                     }
                 }
-                Err(_e) => {
+                Err(_) => {
                     break;
                 }
             }
         }
+        return Ok(ret);
     }
 }
