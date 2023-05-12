@@ -1,6 +1,7 @@
 use std::{collections::HashMap, rc::Rc, cell::RefCell};
 use crate::{errors::LoxError, token::{Token, Tokenliteral}};
 
+#[derive(Debug)]
 pub struct Environment {
     values: HashMap<String, Tokenliteral>,
     env_visitor: Option<Rc<RefCell<Environment>>>,
@@ -57,4 +58,63 @@ impl Environment {
         msg.push_str("'.");
         Err(LoxError::RuntimeError(name.clone(), msg))
     }
+
+    pub fn get_at(&self, distance: i32, name: &Token) -> Result<Tokenliteral, LoxError> {
+        if distance == 0 {
+            let ret = self.values.get(&name.lexeme);
+            if let Some(v) = ret {
+                return Ok(v.clone());
+            }
+            return Err(LoxError::RuntimeError(name.clone(), "env get error".to_string()));
+        } else {
+            if let Some(enclosing) = &self.env_visitor {
+                return self.get_at_idx(&name, enclosing, 1, distance);
+            } else {
+                return Err(LoxError::RuntimeError(name.clone(), "env get error".to_string()));
+            }
+        }
+    }
+
+    fn get_at_idx(&self, 
+        name: &Token,
+        enclosing: &Rc<RefCell<Environment>>, 
+        current: i32, 
+        distance: i32) -> Result<Tokenliteral, LoxError> {
+        if current == distance {
+            return enclosing.borrow().get(&name);
+        } else {
+            if let Some(env) = &enclosing.borrow().env_visitor {
+                return self.get_at_idx(name, env, current + 1, distance);
+            }
+        }
+        return Err(LoxError::RuntimeError(name.clone(), "get_at_idx".to_string()));
+    }
+
+    pub fn assign_at(&mut self, name: &Token, value: &Tokenliteral, distance: i32) {
+        if distance == 0 {
+            self.values.insert(name.lexeme.to_string(), value.clone());
+        } else {
+            if let Some(enclosing) = &self.env_visitor {
+                return self.assign_at_idx(name, value, enclosing, 1, distance);
+            }
+        }
+    }
+
+    fn assign_at_idx(
+        &self,
+        name: &Token,
+        value: &Tokenliteral,
+        enclosing: &Rc<RefCell<Environment>>,
+        current: i32,
+        distance: i32
+        ) {
+            if current == distance {
+                enclosing.borrow_mut().values.insert(name.lexeme.to_string(), value.clone());
+            } else {
+                if let Some(env) = &enclosing.borrow().env_visitor {
+                    self.assign_at_idx(name, value, env, current + 1, distance)
+                }
+            }
+    }
+
 }

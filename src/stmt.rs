@@ -1,4 +1,4 @@
-use crate::{token::{Token, Tokenliteral}, expr::Expr, interpreter::Interpreter, errors::LoxError};
+use crate::{token::{Token, Tokenliteral}, expr::Expr, errors::LoxError};
 
 pub trait StmtVisitor {
     fn visit_block_stmt(&mut self, stmt: &Block) -> Result<Tokenliteral, LoxError>;
@@ -170,7 +170,7 @@ pub enum Stmt {
     Nil,
 }
 impl Stmt {
-    pub fn accept(&self, intr: &mut Interpreter) -> Result<Tokenliteral, LoxError> {
+    pub fn accept(&self, intr: &mut dyn StmtVisitor) -> Result<Tokenliteral, LoxError> {
         let ret = match self {
             Stmt::BlockStmt(stmt) => {
                 intr.visit_block_stmt(stmt)

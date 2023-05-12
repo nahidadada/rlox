@@ -1,5 +1,4 @@
 use crate::errors::LoxError;
-use crate::interpreter::Interpreter;
 use crate::token::Token;
 use crate::token::Tokenliteral;
 
@@ -213,8 +212,14 @@ pub enum Expr {
     Nil,
 }
 
+impl ToString for Expr {
+    fn to_string(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl Expr {
-    pub fn accept(&self, inter: &mut Interpreter) -> Result<Tokenliteral, LoxError> {
+    pub fn accept(&self, inter: &mut dyn ExprVisitor) -> Result<Tokenliteral, LoxError> {
         match self {
             Expr::BinaryExpr(binary) => {
                 return inter.visit_binary_expr(binary);

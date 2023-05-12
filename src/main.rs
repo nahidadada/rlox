@@ -1,9 +1,11 @@
+use std::cell::RefCell;
 use std::env;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
+use std::rc::Rc;
 
 mod errors;
 mod expr;
@@ -15,10 +17,13 @@ mod token;
 mod token_type;
 mod environment;
 mod loxfunction;
+mod resolver;
+mod rust_number;
 use errors::Log;
 use interpreter::Interpreter;
 use parser::Parser;
 use scanner::Scanner;
+use resolver::Resolver;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -53,13 +58,13 @@ fn run_file(path: &str) {
         panic!();
     }
 
-    let mut log = Log::new();
-    run(&s.unwrap(), &mut log);
+    let log = Rc::new(RefCell::new(Log::new()));
+    run(&s.unwrap(), &log);
 
-    if log.had_parse_error() {
+    if log.borrow().had_parse_error() {
         panic!("parse error, quit");
     }
-    if log.had_runtime_error() {
+    if log.borrow().had_runtime_error() {
         panic!("runtime error, quit");
     }
 }
@@ -84,22 +89,38 @@ fn run_prompt() {
             break;
         }
 
-        let mut log = Log::new();
-        run(&line, &mut log);
+        let log = Rc::new(RefCell::new(Log::new()));
+        run(&line, &log);
         // had_error = false;
     }
 }
 
-fn run(s: &str, log: &mut Log) {
-    let mut scanner = Scanner::new(s, log);
+fn run(s: &str, log: &Rc<RefCell<Log>>) {
+    let mut scanner = Scanner::new(s, &log);
     let tokens = scanner.scan_tokens();
 
-    let mut parser = Parser::new(&tokens, log);
-    let stmts = parser.parse();
-    if log.had_parse_error() {
+    let mut parser = Parser::new(&tokens, &log);
+    let statements = parser.parse();
+    if log.borrow().had_parse_error() {
         return;
     }
 
-    let mut inter = Interpreter::new(log);
-    inter.interpret(&stmts);
+    let inter = Rc::new(RefCell::new(Interpreter::new(&log)));
+    let mut resolver = Resolver::new(&inter, &log);
+
+    let mut valid_stmts = Vec::new();
+    for stmt in statements.iter() {
+        match stmt {
+            Ok(v) => {
+                valid_stmts.push(Box::new(v.clone()));
+            }
+            Err(_) => {}
+        }
+    }
+    resolver.resolve_statement(&valid_stmts);
+    if log.borrow().had_parse_error() {
+        return;
+    }
+
+    inter.borrow_mut().interpret(&valid_stmts);
 }

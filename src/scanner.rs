@@ -1,22 +1,25 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
+use crate::rust_number::Number;
 use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::token::Tokenliteral;
 use crate::errors::Log;
 
-pub struct Scanner<'a> {
+pub struct Scanner {
     source: Vec<char>,
     start: usize,
     current: usize,
     line: i32,
     tokens: Vec<Token>,
     keywords: HashMap<String, TokenType>,
-    errors: &'a mut Log,
+    errors: Rc<RefCell<Log>>,
 }
 
-impl Scanner<'_> {
-    pub fn new<'a>(s: &'a str, log: &'a mut Log) -> Scanner<'a> {
+impl Scanner {
+    pub fn new(s: &str, log: &Rc<RefCell<Log>>) -> Scanner {
         let mut ks = HashMap::new();
         ks.insert("and".to_string(), TokenType::And);
         ks.insert("class".to_string(), TokenType::Class);
@@ -42,7 +45,7 @@ impl Scanner<'_> {
             line: 1,
             tokens: Vec::new(),
             keywords: ks,
-            errors: log,
+            errors: Rc::clone(log),
         }
     }
 
@@ -125,7 +128,7 @@ impl Scanner<'_> {
                 self.handle_identifier();
             }
             _ => {
-                self.errors.error(self.line, "unexpeded char");
+                self.errors.borrow_mut().error(self.line, "unexpeded char");
             }
         }
     }
@@ -173,7 +176,7 @@ impl Scanner<'_> {
         }
 
         if self.is_at_end() {
-            self.errors.error(self.line, "unterminated string");
+            self.errors.borrow_mut().error(self.line, "unterminated string");
             return;
         }
 
@@ -200,7 +203,7 @@ impl Scanner<'_> {
         let v = &self.source[self.start..self.current];
         let s = String::from_iter(v.iter());
         let f = s.parse::<f64>().unwrap();
-        let literal = Tokenliteral::Lnumber(f);
+        let literal = Tokenliteral::Lnumber(Number::new(f));
         self.real_add_token(TokenType::Number, &literal);
     }
 

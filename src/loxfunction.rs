@@ -7,17 +7,19 @@ pub trait LoxCallable {
     fn call(&mut self, inter: &mut Interpreter, params: &Vec<Tokenliteral>) -> Result<Tokenliteral, LoxError>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct LoxFunction {
     pub name: String,
     pub declaration: Box<Stmt>,
+    closure: Rc<RefCell<Environment>>,
 }
 
 impl LoxFunction {
-    pub fn new(name: &str, declaration: &Box<Stmt>) -> LoxFunction {
+    pub fn new(name: &str, declaration: &Box<Stmt>, closure: &Rc<RefCell<Environment>>) -> LoxFunction {
         LoxFunction {
             name: name.to_string(),
             declaration: declaration.clone(),
+            closure: Rc::clone(closure),
         }
     }
 }
@@ -35,7 +37,7 @@ impl LoxCallable for LoxFunction {
     }
 
     fn call(&mut self, inter: &mut Interpreter, params: &Vec<Tokenliteral>) -> Result<Tokenliteral, LoxError> {
-        let env = Rc::new(RefCell::new(Environment::new_with_visitor(&inter.globals)));
+        let env = Rc::new(RefCell::new(Environment::new_with_visitor(&self.closure)));
 
         match *self.declaration.clone(){
             Stmt::FunctionStmt(stmt) => {

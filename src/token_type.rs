@@ -1,4 +1,6 @@
-#[derive(Debug, Clone, Copy, PartialEq)]
+use std::fmt::Display;
+
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum TokenType {
     LeftParen, RightParen, LeftBrace, RightBrace,
     Comma, Dot, Minus, Plus, Semicolon, Slash, Star,
@@ -14,4 +16,10 @@ pub enum TokenType {
     Print, Return, Super, This, True, Var, While,
 
     Eofs,
+}
+
+impl Display for TokenType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }

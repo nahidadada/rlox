@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::{token::Token, token_type::TokenType};
 use crate::token::Tokenliteral;
 use crate::expr::{Expr, self};
@@ -5,18 +8,18 @@ use crate::stmt::{self, Stmt};
 use crate::errors::LoxError;
 use crate::errors::Log;
 
-pub struct Parser<'a> {
+pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
-    errors: &'a mut Log,
+    errors: Rc<RefCell<Log>>,
 }
 
-impl Parser<'_> {
-    pub fn new<'a>(tokens: &'a Vec<Token>, log: &'a mut Log) -> Parser<'a> {
+impl Parser {
+    pub fn new(tokens: &Vec<Token>, log: &Rc<RefCell<Log>>) -> Parser {
         Parser {
             tokens: tokens.clone(),
             current: 0,
-            errors: log,
+            errors: Rc::clone(log),
         }
     }
 
@@ -442,7 +445,7 @@ impl Parser<'_> {
     }
 
     fn error(&mut self, token: &Token, msg: &str) -> Result<Token, LoxError> {
-        self.errors.token_error(&token, msg);
+        self.errors.borrow_mut().token_error(&token, msg);
         return Err(LoxError::ParseError);
     }
 

@@ -1,49 +1,51 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::environment::Environment;
 use crate::errors::{Log, LoxError};
 use crate::loxfunction::{LoxCallable, LoxFunction};
+use crate::rust_number::Number;
 use crate::stmt::{Stmt, StmtVisitor};
+use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::{
     expr::{Expr, ExprVisitor},
     token::Tokenliteral,
 };
 
-pub struct Interpreter<'a> {
-    errors: &'a mut Log,
+pub struct Interpreter {
+    errors: Rc<RefCell<Log>>,
     pub globals: Rc<RefCell<Environment>>,
     pub environment: Rc<RefCell<Environment>>,
+    locals: HashMap<String, i32>,
 }
 
-impl Interpreter<'_> {
-    pub fn new(log: &mut Log) -> Interpreter {
+impl Interpreter {
+    pub fn new(log: &Rc<RefCell<Log>>) -> Interpreter {
         Interpreter {
-            errors: log,
+            errors: Rc::clone(log),
             globals: Rc::new(RefCell::new(Environment::new())),
             environment: Rc::new(RefCell::new(Environment::new())),
+            locals: HashMap::new(),
         }
     }
 
-    pub fn interpret(&mut self, statements: &Vec<Result<Stmt, LoxError>>) {
+    pub fn interpret(&mut self, statements: &Vec<Box<Stmt>>) {
         for stmt in statements.iter() {
-            match stmt {
-                Ok(s) => {
-                    let _ret = self.execute(s);
-                    if self.errors.had_runtime_error() {
-                        break;
-                    }
-                }
-                Err(_e) => {
-                    break;
-                }
+            let _ret = self.execute(stmt);
+            if self.errors.borrow_mut().had_runtime_error() {
+                break;
             }
         }
     }
 
     fn execute(&mut self, stmt: &Stmt) -> Result<Tokenliteral, LoxError> {
         return stmt.accept(self);
+    }
+
+    pub fn resolve(&mut self, expr: &Expr, depth: i32) {
+        self.locals.insert(expr.to_string(), depth);
     }
 
     pub fn execute_block(&mut self, stmt: &Vec<Box<Stmt>>, env: & Rc<RefCell<Environment>>) -> Result<Tokenliteral, LoxError> {
@@ -100,12 +102,28 @@ impl Interpreter<'_> {
         }
         return None;
     }
+
+    pub fn lookup_var(&mut self, name: &Token, expr: &Expr) -> Result<Tokenliteral, LoxError> {
+        let ret = self.locals.get(&expr.to_string());
+        if let Some(distance) = ret {
+            return self.environment.borrow().get_at(*distance, &name);
+        } else {
+            return self.globals.borrow().get(&name);
+        }
+    }
 }
 
-impl ExprVisitor for Interpreter<'_> {
+impl ExprVisitor for Interpreter {
     fn visit_assign_expr(&mut self, expr: &crate::expr::Assign) -> Result<Tokenliteral, LoxError> {
         let value = self.evalute(&expr.value)?;
-        self.environment.borrow_mut().assign(&expr.name, &value)?;
+
+        let ret = self.locals.get(&Expr::AssignExpr(expr.clone()).to_string());
+        if let Some(distance) = ret {
+            self.environment.borrow_mut().assign_at(&expr.name, &value, *distance);
+        } else {
+            let _ret = self.globals.borrow_mut().assign(&expr.name, &value);
+        }
+        
         return Ok(value);
     }
 
@@ -116,10 +134,10 @@ impl ExprVisitor for Interpreter<'_> {
         let ret = match (&left, &right) {
             (Tokenliteral::Lnumber(vleft), Tokenliteral::Lnumber(vright)) => {
                 match expr.operator.token_type {
-                    TokenType::Minus => Ok(Tokenliteral::Lnumber(vleft - vright)),
-                    TokenType::Slash => Ok(Tokenliteral::Lnumber(vleft / vright)),
-                    TokenType::Star => Ok(Tokenliteral::Lnumber(vleft * vright)),
-                    TokenType::Plus => Ok(Tokenliteral::Lnumber(vleft + vright)),
+                    TokenType::Minus => Ok(Tokenliteral::Lnumber(Number::new(vleft.to_value() - vright.to_value()))),
+                    TokenType::Slash => Ok(Tokenliteral::Lnumber(Number::new(vleft.to_value() / vright.to_value()))),
+                    TokenType::Star => Ok(Tokenliteral::Lnumber(Number::new(vleft.to_value() * vright.to_value()))),
+                    TokenType::Plus => Ok(Tokenliteral::Lnumber(Number::new(vleft.to_value() + vright.to_value()))),
                     TokenType::Greater => Ok(Tokenliteral::Lbool(vleft > vright)),
                     TokenType::GreaterEqual => Ok(Tokenliteral::Lbool(vleft >= vright)),
                     TokenType::Less => Ok(Tokenliteral::Lbool(vleft < vright)),
@@ -222,7 +240,10 @@ impl ExprVisitor for Interpreter<'_> {
         let right = self.evalute(&expr.right)?;
         let ret = match expr.operator.token_type {
             TokenType::Minus => match right {
-                Tokenliteral::Lnumber(v) => Ok(Tokenliteral::Lnumber(-v)),
+                Tokenliteral::Lnumber(v) => {
+                    let ret = v.to_value();
+                    return Ok(Tokenliteral::Lnumber(Number::new(-ret)));
+                }
                 _ => Err(LoxError::RuntimeError(
                     expr.operator.clone(),
                     "Operand must be a number".to_string(),
@@ -241,17 +262,17 @@ impl ExprVisitor for Interpreter<'_> {
         &mut self,
         expr: &crate::expr::Variable,
     ) -> Result<Tokenliteral, LoxError> {
-        return self.environment.borrow().get(&expr.name);
+        return self.lookup_var(&expr.name, &Expr::VariableExpr(expr.clone()));
     }
 }
 
-impl StmtVisitor for Interpreter<'_> {
+impl StmtVisitor for Interpreter {
     fn visit_block_stmt(&mut self, stmt: &crate::stmt::Block) -> Result<Tokenliteral, LoxError> {
-         let mut env = Rc::new(RefCell::new(Environment::new_with_visitor(&Rc::clone(&self.environment))));
+         let env = Rc::new(RefCell::new(Environment::new_with_visitor(&Rc::clone(&self.environment))));
          return self.execute_block(&stmt.statements, &env);
     }
 
-    fn visit_class_stmt(&mut self, stmt: &crate::stmt::Class) -> Result<Tokenliteral, LoxError> {
+    fn visit_class_stmt(&mut self, _stmt: &crate::stmt::Class) -> Result<Tokenliteral, LoxError> {
         todo!()
     }
 
@@ -260,7 +281,11 @@ impl StmtVisitor for Interpreter<'_> {
     }
 
     fn visit_function_stmt(&mut self, stmt: &crate::stmt::Function) -> Result<Tokenliteral, LoxError> {
-        let function = LoxFunction::new(&stmt.name.lexeme, &Box::new(Stmt::FunctionStmt(stmt.clone())));
+        let function = LoxFunction::new(
+            &stmt.name.lexeme, 
+            &Box::new(Stmt::FunctionStmt(stmt.clone())),
+            &self.environment
+        );
         self.environment.borrow_mut().define(&stmt.name, &Tokenliteral::LCall(function.clone()));
         return Ok(Tokenliteral::Nil);
     }
@@ -286,7 +311,7 @@ impl StmtVisitor for Interpreter<'_> {
                 println!("{}", token);
             }
             Err(e) => {
-                self.errors.runtime_error(&e);
+                self.errors.borrow_mut().runtime_error(&e);
             }
         }
         Ok(Tokenliteral::Nil)
