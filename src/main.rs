@@ -114,6 +114,7 @@ fn run(s: &str, log: &Rc<RefCell<Log>>) {
             Ok(v) => {
                 valid_stmts.push(Box::new(v.clone()));
             }
+     
             Err(_) => {}
         }
     }

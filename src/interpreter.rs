@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use crate::environment::Environment;
 use crate::errors::{Log, LoxError};
+use crate::expr::ExprIds;
 use crate::loxfunction::{LoxCallable, LoxFunction};
 use crate::rust_number::Number;
 use crate::stmt::{Stmt, StmtVisitor};
@@ -18,16 +19,19 @@ pub struct Interpreter {
     errors: Rc<RefCell<Log>>,
     pub globals: Rc<RefCell<Environment>>,
     pub environment: Rc<RefCell<Environment>>,
-    locals: HashMap<String, i32>,
+    local_key: Vec<Expr>,
+    local_val: Vec<i32>,
 }
 
 impl Interpreter {
     pub fn new(log: &Rc<RefCell<Log>>) -> Interpreter {
+        let g = Rc::new(RefCell::new(Environment::new()));
         Interpreter {
             errors: Rc::clone(log),
-            globals: Rc::new(RefCell::new(Environment::new())),
-            environment: Rc::new(RefCell::new(Environment::new())),
-            locals: HashMap::new(),
+            globals: Rc::clone(&g),
+            environment: Rc::clone(&g),
+            local_key: Vec::new(),
+            local_val: Vec::new(),
         }
     }
 
@@ -45,7 +49,8 @@ impl Interpreter {
     }
 
     pub fn resolve(&mut self, expr: &Expr, depth: i32) {
-        self.locals.insert(expr.to_string(), depth);
+        self.local_key.push(expr.clone());
+        self.local_val.push(depth);
     }
 
     pub fn execute_block(&mut self, stmt: &Vec<Box<Stmt>>, env: & Rc<RefCell<Environment>>) -> Result<Tokenliteral, LoxError> {
@@ -104,9 +109,17 @@ impl Interpreter {
     }
 
     pub fn lookup_var(&mut self, name: &Token, expr: &Expr) -> Result<Tokenliteral, LoxError> {
-        let ret = self.locals.get(&expr.to_string());
-        if let Some(distance) = ret {
-            return self.environment.borrow().get_at(*distance, &name);
+        let mut distance: Option<i32> = None;
+
+        for (idx, elem) in self.local_key.iter().enumerate() {
+            if expr.get_id() == elem.get_id() {
+                distance = Some(self.local_val[idx]);
+                break;
+            }
+        }
+
+        if let Some(distance) = distance {
+            return self.environment.borrow().get_at(distance, &name);
         } else {
             return self.globals.borrow().get(&name);
         }
@@ -117,9 +130,17 @@ impl ExprVisitor for Interpreter {
     fn visit_assign_expr(&mut self, expr: &crate::expr::Assign) -> Result<Tokenliteral, LoxError> {
         let value = self.evalute(&expr.value)?;
 
-        let ret = self.locals.get(&Expr::AssignExpr(expr.clone()).to_string());
-        if let Some(distance) = ret {
-            self.environment.borrow_mut().assign_at(&expr.name, &value, *distance);
+        let mut distance: Option<i32> = None;
+
+        for (idx, elem) in self.local_key.iter().enumerate() {
+            if expr.id == elem.get_id() {
+                distance = Some(self.local_val[idx]);
+                break;
+            }
+        }
+
+        if let Some(distance) = distance {
+            self.environment.borrow_mut().assign_at(&expr.name, &value, distance);
         } else {
             let _ret = self.globals.borrow_mut().assign(&expr.name, &value);
         }
