@@ -8,13 +8,13 @@ pub trait ExprVisitor {
     fn visit_assign_expr(&mut self, expr: &Assign) -> Result<Tokenliteral, LoxError>;
     fn visit_binary_expr(&mut self, expr: &Binary) -> Result<Tokenliteral, LoxError>;
     fn visit_call_expr(&mut self, expr: &Call) -> Result<Tokenliteral, LoxError>;
-    fn visit_get_expr(&mut self, expr: &Get);
+    fn visit_get_expr(&mut self, expr: &Get) -> Result<Tokenliteral, LoxError>;
     fn visit_grouping_expr(&mut self, expr: &Grouping) -> Result<Tokenliteral, LoxError>;
     fn visit_literal_expr(&mut self, expr: &Literal) -> Result<Tokenliteral, LoxError>;
     fn visit_logical_expr(&mut self, expr: &Logical) -> Result<Tokenliteral, LoxError>;
-    fn visit_set_expr(&mut self, expr: &Set);
+    fn visit_set_expr(&mut self, expr: &Set) -> Result<Tokenliteral, LoxError>;
     fn visit_super_expr(&mut self, expr: &Super);
-    fn visit_this_expr(&mut self, expr: &This);
+    fn visit_this_expr(&mut self, expr: &This) -> Result<Tokenliteral, LoxError>;
     fn visit_unary_expr(&mut self, expr: &Unary) -> Result<Tokenliteral, LoxError>;
     fn visit_variable_expr(&mut self, expr: &Variable) -> Result<Tokenliteral, LoxError>;
 }
@@ -24,7 +24,7 @@ pub trait ExprIds {
 }
 
 fn gen_expr_id() -> i32 {
-    let mut ret;
+    let ret;
     unsafe {
         ret = EXPR_ID;
         EXPR_ID += 1;
@@ -90,9 +90,9 @@ impl Call {
 ///////////////////////////
 #[derive(Debug, Clone)]
 pub struct Get {
-    object: Box<Expr>,
-    name: Token,
-    id: i32,
+    pub object: Box<Expr>,
+    pub name: Token,
+    pub id: i32,
 }
 impl Get {
     pub fn new(obj: &Expr, name: &Token) -> Get {
@@ -156,10 +156,10 @@ impl Logical {
 /////////////////////////////////
 #[derive(Debug, Clone)]
 pub struct Set {
-    object: Box<Expr>,
-    name: Token,
-    value: Box<Expr>,
-    id: i32,
+    pub object: Box<Expr>,
+    pub name: Token,
+    pub value: Box<Expr>,
+    pub id: i32,
 }
 impl Set {
     pub fn new(obj: &Expr, name: &Token, value: &Expr) -> Set {
@@ -192,7 +192,7 @@ impl Super {
 /////////////////////////////////
 #[derive(Debug, Clone)]
 pub struct This {
-    keyword: Token,
+    pub keyword: Token,
     id: i32,
 }
 impl This {
@@ -275,20 +275,20 @@ impl Expr {
             Expr::CallExpr(call) => {
                 return inter.visit_call_expr(call);
             }
-            Expr::GetExpr(_) => {
-                todo!();
+            Expr::GetExpr(expr) => {
+                return inter.visit_get_expr(expr)
             },
             Expr::LogicalExpr(expr) => {
                 return inter.visit_logical_expr(expr);
             },
-            Expr::SetExpr(_) => {
-                todo!();
+            Expr::SetExpr(expr) => {
+                return inter.visit_set_expr(expr);
             },
             Expr::SuperExpr(_) => {
                 todo!();
             },
-            Expr::ThisExpr(_) => {
-                todo!();
+            Expr::ThisExpr(expr) => {
+                return inter.visit_this_expr(expr);
             },
             Expr::VariableExpr(expr) => {
                 return inter.visit_variable_expr(expr);

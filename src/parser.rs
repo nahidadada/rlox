@@ -34,6 +34,10 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Stmt, LoxError> {
+        if self.is_match(&[TokenType::Class]) {
+            return self.class_declaration();
+        }
+
         if self.is_match(&[TokenType::Fun]) {
             let ret = self.function("function");
             if ret.is_err() {
@@ -55,6 +59,27 @@ impl Parser {
             self.synchronize();
         }
         return ret;
+    }
+
+    fn class_declaration(&mut self) -> Result<Stmt, LoxError> {
+        let name = self.consume(&TokenType::Identifier, "Expect class name.")?;
+        self.consume(&TokenType::LeftBrace, "Expect '{' before class body.")?;
+
+        let mut methods = Vec::new();
+        while !self.check(&TokenType::RightBrace) && ! self.is_at_end() {
+            let f = self.function("method")?;
+            match f {
+                Stmt::FunctionStmt(v) => {
+                    methods.push(v);
+                }
+                _ => {
+                    println!("should be func stmt");
+                }
+            }
+        }
+
+        self.consume(&TokenType::RightBrace, "Expect '}' after class body.")?;
+        return Ok(Stmt::ClassStmt(stmt::Class::new(&name, &methods)));
     }
 
     fn function(&mut self, msg: &str) -> Result<Stmt, LoxError> {
@@ -248,6 +273,9 @@ impl Parser {
                     let name = &vars.name;
                     return Ok(Expr::AssignExpr(expr::Assign::new(name, &value)));
                 }
+                Expr::GetExpr(v) => {
+                    return Ok(Expr::SetExpr(expr::Set::new(&v.object, &v.name, &value)));
+                }
                 _ => {
                     return self.error(&equals, "Invalid assignment target").map(|_| Expr::Nil);
                 }
@@ -343,6 +371,10 @@ impl Parser {
         loop {
             if self.is_match(&[TokenType::LeftParen]) {
                 expr = self.finish_call(&expr)?;
+            } else if self.is_match(&[TokenType::Dot]) {
+                let name = self.consume(&TokenType::Identifier, 
+                    "Expect property name after '.'.")?;
+                expr = Expr::GetExpr(expr::Get::new(&expr, &name));
             } else {
                 break;
             }
@@ -383,6 +415,11 @@ impl Parser {
         if self.is_match(&[TokenType::Number, TokenType::Strings]) {
             let tok = self.previous();
             return Ok(Expr::LiteralExpr(expr::Literal::new(&tok.literal)));
+        }
+
+        if self.is_match(&[TokenType::This]) {
+            let token = self.previous();
+            return Ok(Expr::ThisExpr(expr::This::new(&token)));
         }
 
         if self.is_match(&[TokenType::Identifier]) {

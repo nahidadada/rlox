@@ -28,12 +28,17 @@ impl Block {
 ///////////////////////
 #[derive(Debug, Clone)]
 pub struct Class {
-    name: Token,
-    superclass: Box<Expr>,
-    methods: Function,
+    pub name: Token,
+    //pub superclass: Box<Expr>,
+    pub methods: Vec<Function>,
 }
 impl Class {
-
+    pub fn new(name: &Token, methods: &Vec<Function>) -> Class {
+        Class {
+            name: name.clone(),
+            methods: methods.clone(),
+        }
+    }
 }
 
 /////////////////////////
@@ -175,7 +180,9 @@ impl Stmt {
             Stmt::BlockStmt(stmt) => {
                 intr.visit_block_stmt(stmt)
             },
-            Stmt::ClassStmt(_) => todo!(),
+            Stmt::ClassStmt(stmt) => {
+                intr.visit_class_stmt(stmt)
+            },
             Stmt::ExpressionStmt(stmt) => {
                 intr.visit_expression_stmt(stmt)
             },

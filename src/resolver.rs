@@ -16,13 +16,21 @@ use crate::token::Tokenliteral;
 enum FuncType {
     None,
     Function,
+    Initializer,
+    Method,
 }
 
+#[derive(Clone, PartialEq)]
+enum ClassType {
+    None, 
+    Class,
+}
 pub struct Resolver {
     interpreter: Rc<RefCell<Interpreter>>,
     scopes: Vec<HashMap<String, bool>>,
     log: Rc<RefCell<Log>>,
     current_function: FuncType,
+    current_class: ClassType,
 }
 
 impl Resolver {
@@ -32,6 +40,7 @@ impl Resolver {
             scopes: Vec::new(),
             log : Rc::clone(log),
             current_function: FuncType::None,
+            current_class: ClassType::None,
         }
     }
 
@@ -140,8 +149,34 @@ impl StmtVisitor for Resolver {
         return Ok(Tokenliteral::Nil);
     }
 
-    fn visit_class_stmt(&mut self, _stmt: &crate::stmt::Class) -> Result<crate::token::Tokenliteral, crate::errors::LoxError> {
-        todo!()
+    fn visit_class_stmt(&mut self, stmt: &crate::stmt::Class) -> Result<crate::token::Tokenliteral, crate::errors::LoxError> {
+        let enclosing_class = self.current_class.clone();
+        self.current_class = ClassType::Class;
+
+        self.declare(&stmt.name);
+        self.define(&stmt.name);
+
+        self.begin_scope();
+        let idx = self.scopes.len() - 1;
+        let ret = self.scopes.get_mut(idx);
+        if let Some(v) = ret {
+            v.insert("this".to_string(), true);
+        } else {
+            println!("self.scope peek failed");
+            return Err(crate::errors::LoxError::RuntimeError(stmt.name.clone(), "self.scope peek failed".to_string()));
+        }
+        
+        for method in stmt.methods.iter() {
+            let mut declaration = FuncType::Method;
+            if method.name.lexeme.eq("init") {
+                declaration = FuncType::Initializer;
+            }
+            self.resolve_func_stmt(method, declaration);
+        }
+
+        self.end_scope();
+        self.current_class = enclosing_class;
+        return Ok(Tokenliteral::Nil);
     }
 
     fn visit_expression_stmt(&mut self, stmt: &crate::stmt::Expression) -> Result<crate::token::Tokenliteral, crate::errors::LoxError> {
@@ -177,6 +212,9 @@ impl StmtVisitor for Resolver {
         }        
 
         if let Some(v) = &stmt.value {
+            if self.current_function == FuncType::Initializer {
+                self.log.borrow_mut().error(stmt.keyword.line, "Can't return a value from an initializer.");
+            }
             self.resolve_expr(v);
         }
         return Ok(Tokenliteral::Nil);
@@ -224,8 +262,9 @@ impl ExprVisitor for Resolver {
         return Ok(Tokenliteral::Nil);
     }
 
-    fn visit_get_expr(&mut self, _expr: &expr::Get) {
-        todo!()
+    fn visit_get_expr(&mut self, expr: &expr::Get) -> Result<Tokenliteral, crate::errors::LoxError> {
+        self.resolve_expr(&expr.object);
+        return Ok(Tokenliteral::Nil);
     }
 
     fn visit_grouping_expr(&mut self, expr: &expr::Grouping) -> Result<Tokenliteral, crate::errors::LoxError> {
@@ -243,16 +282,24 @@ impl ExprVisitor for Resolver {
         return Ok(Tokenliteral::Nil);
     }
 
-    fn visit_set_expr(&mut self, _expr: &expr::Set) {
-        todo!()
+    fn visit_set_expr(&mut self, expr: &expr::Set) -> Result<Tokenliteral, crate::errors::LoxError> {
+        self.resolve_expr(&expr.value);
+        self.resolve_expr(&expr.object);
+        return Ok(Tokenliteral::Nil);
     }
 
     fn visit_super_expr(&mut self, _expr: &expr::Super) {
         todo!()
     }
 
-    fn visit_this_expr(&mut self, _expr: &expr::This) {
-        todo!()
+    fn visit_this_expr(&mut self, expr: &expr::This) -> Result<Tokenliteral, crate::errors::LoxError> {
+        if self.current_class == ClassType::None {
+            println!("Can't use 'this' outside of a class.");
+            return Err(crate::errors::LoxError::RuntimeError(expr.keyword.clone(), "Can't use 'this' outside of a class.".to_string()));
+        }
+
+        self.resolve_local(&Expr::ThisExpr(expr.clone()), &expr.keyword);
+        return Ok(Tokenliteral::Nil);
     }
 
     fn visit_unary_expr(&mut self, expr: &expr::Unary) -> Result<Tokenliteral, crate::errors::LoxError> {

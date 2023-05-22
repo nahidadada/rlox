@@ -19,6 +19,7 @@ mod environment;
 mod loxfunction;
 mod resolver;
 mod rust_number;
+mod loxclass;
 use errors::Log;
 use interpreter::Interpreter;
 use parser::Parser;

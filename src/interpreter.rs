@@ -5,6 +5,7 @@ use std::rc::Rc;
 use crate::environment::Environment;
 use crate::errors::{Log, LoxError};
 use crate::expr::ExprIds;
+use crate::loxclass::LoxClass;
 use crate::loxfunction::{LoxCallable, LoxFunction};
 use crate::rust_number::Number;
 use crate::stmt::{Stmt, StmtVisitor};
@@ -78,6 +79,8 @@ impl Interpreter {
             Tokenliteral::Lbool(v) => return *v,
             Tokenliteral::Nil => return false,
             Tokenliteral::LCall(_) => return true,
+            Tokenliteral::LClass(_) => return true,
+            Tokenliteral::LInst(_) => return true,
         }
     }
     fn is_equal(&self, left: &Tokenliteral, right: &Tokenliteral) -> bool {
@@ -200,14 +203,25 @@ impl ExprVisitor for Interpreter {
                 }
                 return call.call(self, &arguments);
             }
+            Tokenliteral::LClass(mut call) => {
+                return call.call(self, &arguments);
+            }
             _ => {
                 return Err(LoxError::RuntimeError(expr.paren.clone(), "must be func".to_string()));
             }
         }
     }
 
-    fn visit_get_expr(&mut self, _expr: &crate::expr::Get) {
-        todo!()
+    fn visit_get_expr(&mut self, expr: &crate::expr::Get) -> Result<Tokenliteral, LoxError> {
+        let object = self.evalute(&expr.object)?;
+        match object {
+            Tokenliteral::LInst(v) => {
+                return v.get(&expr.name);
+            }
+            _ => {}
+        }
+        return Err(LoxError::RuntimeError(expr.name.clone(), 
+            "Only instances have properties.".to_string()));
     }
 
     fn visit_grouping_expr(
@@ -245,16 +259,26 @@ impl ExprVisitor for Interpreter {
         return self.evalute(&expr.right);
     }
 
-    fn visit_set_expr(&mut self, _expr: &crate::expr::Set) {
-        todo!()
+    fn visit_set_expr(&mut self, expr: &crate::expr::Set) -> Result<Tokenliteral, LoxError> {
+        let object = self.evalute(&expr.object)?;
+        match object {
+            Tokenliteral::LInst(mut v) => {
+                let value = self.evalute(&expr.value)?;
+                v.set(&expr.name, &value);
+                return Ok(value);
+            }
+            _ => {}
+        }
+
+        return Err(LoxError::RuntimeError(expr.name.clone(), "Only instances have fields.".to_string()));
     }
 
     fn visit_super_expr(&mut self, _expr: &crate::expr::Super) {
         todo!()
     }
 
-    fn visit_this_expr(&mut self, _expr: &crate::expr::This) {
-        todo!()
+    fn visit_this_expr(&mut self, expr: &crate::expr::This) -> Result<Tokenliteral, LoxError> {
+        return self.lookup_var(&expr.keyword, &Expr::ThisExpr(expr.clone()));
     }
 
     fn visit_unary_expr(&mut self, expr: &crate::expr::Unary) -> Result<Tokenliteral, LoxError> {
@@ -293,8 +317,22 @@ impl StmtVisitor for Interpreter {
          return self.execute_block(&stmt.statements, &env);
     }
 
-    fn visit_class_stmt(&mut self, _stmt: &crate::stmt::Class) -> Result<Tokenliteral, LoxError> {
-        todo!()
+    fn visit_class_stmt(&mut self, stmt: &crate::stmt::Class) -> Result<Tokenliteral, LoxError> {
+        self.environment.borrow_mut().define(&stmt.name, &Tokenliteral::Nil);
+
+        let mut methods = HashMap::new();
+        for method in stmt.methods.iter() {
+            let function = LoxFunction::new(
+                &method.name.lexeme, 
+                &Box::new(Stmt::FunctionStmt(method.clone())),
+                &self.environment,
+                method.name.lexeme.eq("init"));
+                methods.insert(method.name.lexeme.clone(), function);
+        }
+
+        let klass = LoxClass::new(&stmt.name.lexeme, &methods);
+        let _ret = self.environment.borrow_mut().assign(&stmt.name, &Tokenliteral::LClass(klass));
+        return Ok(Tokenliteral::Nil);
     }
 
     fn visit_expression_stmt(&mut self, stmt: &crate::stmt::Expression) -> Result<Tokenliteral, LoxError> {
@@ -305,7 +343,8 @@ impl StmtVisitor for Interpreter {
         let function = LoxFunction::new(
             &stmt.name.lexeme, 
             &Box::new(Stmt::FunctionStmt(stmt.clone())),
-            &self.environment
+            &self.environment,
+            false
         );
         self.environment.borrow_mut().define(&stmt.name, &Tokenliteral::LCall(function.clone()));
         return Ok(Tokenliteral::Nil);
